@@ -11,9 +11,13 @@ Created on Thu Aug 24 05:36:44 2023
 
 from pathlib import Path
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import datetime
-
+import seaborn as sns
+import matplotlib as mpl
+import matplotlib.colors as mcolors
+from matplotlib import cm
 
 # %% update plotting data formats
 
@@ -56,4 +60,65 @@ print(CWD)
 RAWDataPath = CWD.joinpath('Data')
 print('\nSource Data (Raw) Folder')
 print(RAWDataPath)
+
+# %%
+
+
+data_files = {}
+
+for f in RAWDataPath.glob('*.csv'):
+    data_files[f.stem] = f
+    
+    
+# %%
+col_names = [
+    'Circuit',
+    'Date_Time',
+    'kW',
+    'cost',
+    'Voltage',
+    'PF',
+    ]
+data_dict = {}
+
+for n, f in data_files.items():
+    data_dict[n] = pd.read_csv(f, names=col_names)
+    
+    
+data_raw = pd.concat(data_dict)
+
+# %%
+
+# print(data.set_index('Date_Time', append=True))
+data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
+
+# %%
+# data_WIP.loc[:,'Date_Time'] = pd.to_datetime(data_WIP.Date_Time)
+
+
+# %%
+kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
+
+kW.index = pd.to_datetime(kW.index)
+
+kW.loc[kW.DHWHP_Spy<0, 'DHWHP_Spy'] = np.nan
+# %% 
+
+"""
+XKCD_COLORS
+CSS4_COLORS
+tab20
+"""
+
+# cmap = mpl.color_sequences['tab10']
+
+cmap = mcolors.CSS4_COLORS
+
+
+# plot_df = kW.drop(columns=['DHWHP_Spy','Main_MTU'])
+fig, ax = plt.subplots(1, 1, tight_layout=True)
+kW.drop(columns=['DHWHP_Spy','Main_MTU']).plot.area(ax=ax, colormap=cm.gist_rainbow) # color=list(cmap))
+
+kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+ax.legend()
 
