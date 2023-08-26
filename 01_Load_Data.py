@@ -23,7 +23,7 @@ from matplotlib import cm
 
 plt.rcParams["date.autoformatter.hour"] = "%Y-%m-%d %H:%M"
 plt.rcParams["date.autoformatter.minute"] = "%Y-%m-%d %H:%M"
-
+plt.rcParams["date.autoformatter.day"] = "%Y-%m-%d"
 
 # %% Turn off plotting of graphs that slow things down by setting to False
 allplots = False
@@ -57,7 +57,7 @@ print('\nCWD Folder')
 print(CWD)
 
 # raw data folder path object
-RAWDataPath = CWD.joinpath('Data')
+RAWDataPath = CWD.joinpath('Data_Raw')
 print('\nSource Data (Raw) Folder')
 print(RAWDataPath)
 
@@ -96,12 +96,35 @@ data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
 # data_WIP.loc[:,'Date_Time'] = pd.to_datetime(data_WIP.Date_Time)
 
 
-# %%
+# %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
 
 kW.index = pd.to_datetime(kW.index)
 
+# %%
+
+
+fig, ax = plt.subplots(1, 1, tight_layout=True)
+kW.drop(columns=[
+    'DHWHP_Spy','Main_MTU']
+    ).plot.area(ax=ax, colormap=cm.gist_rainbow)
+
+kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+ax.legend()
+ax.set_ylabel('Power (kW)')
+ax.set_title('original data')
+
+# %% Data Cleaning
 kW.loc[kW.DHWHP_Spy<0, 'DHWHP_Spy'] = np.nan
+kW.loc[:,'Gar_Dryer_Mod'] = kW.loc[:,'Gar_Dryer'] * 1.05
+kW.loc[:,'K_Oven_Mod'] = kW.loc[:,'K_Oven'] * 1.05
+kW.loc[:,'Garage_Mod'] = kW.loc[:,'Garage'] * 0.6
+kW.loc[:,'K_Fridge_Mod'] = kW.loc[:,'K_Fridge'] * 0.9
+kW.loc[:,'Living_Rm_Mod'] = kW.loc[:,'Living_Rm'] * 0.8
+kW.loc[:,'Bed_G_Off_Mod'] = kW.loc[:,'Bed_G_Off'] * 0.5
+kW.loc[:,'K_DishW_Mod'] = kW.loc[:,'K_DishW'] * 0.4
+kW.loc[:,'DHW_MTU_Mod'] = kW.loc[:,'DHW_MTU'] * 1.0
+kW.sort_index(axis=1, inplace=True)
 # %% 
 
 """
@@ -110,15 +133,13 @@ CSS4_COLORS
 tab20
 """
 
-# cmap = mpl.color_sequences['tab10']
-
-cmap = mcolors.CSS4_COLORS
-
-
-# plot_df = kW.drop(columns=['DHWHP_Spy','Main_MTU'])
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.drop(columns=['DHWHP_Spy','Main_MTU']).plot.area(ax=ax, colormap=cm.gist_rainbow) # color=list(cmap))
+kW.drop(columns=[
+    'DHWHP_Spy','Main_MTU', 'Gar_Dryer', 'K_Oven', 'DHW_MTU',
+    'Garage', 'K_Fridge', 'Living_Rm', 'Bed_G_Off', 'K_DishW']
+    ).plot.area(ax=ax, colormap=cm.gist_rainbow)
 
 kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
 ax.legend()
-
+ax.set_ylabel('Power (kW)')
+ax.set_title('cleaned data')
