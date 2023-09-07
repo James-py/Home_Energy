@@ -13,11 +13,14 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import datetime
-import seaborn as sns
-import matplotlib as mpl
-import matplotlib.colors as mcolors
+# import datetime
+# import seaborn as sns
+# import matplotlib as mpl
+# import matplotlib.colors as mcolors
 from matplotlib import cm
+
+plt.close(fig='all')
+
 
 # %% update plotting data formats
 
@@ -103,13 +106,14 @@ kW.index = pd.to_datetime(kW.index)
 
 # %% Plot Original Data Line Graph
 
-if False:
+if True:
     fig, ax = plt.subplots(1, 1, tight_layout=True)
-    kW.drop(columns=[
-        'DHWHP_Spy','Main_MTU']
-        ).plot(ax=ax, colormap=cm.gist_rainbow)
+    # kW.drop(columns=[
+    #     'DHWHP_Spy','Main_MTU']
+    #     ).plot(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
+    kW[['Bed_G_Off', 'Bed_Main']].plot(ax=ax)
     
-    kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+    # kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
     ax.legend()
     ax.set_ylabel('Power (kW)')
     ax.set_title('original data lines')
@@ -123,9 +127,8 @@ for col in kW.columns:
 # %% Plot Original Data
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.drop(columns=['K_Plg_2', 'K_Plg_4',
-    'DHWHP_Spy','Main_MTU']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow)
+kW.drop(columns=['DHWHP_Spy','Main_MTU']
+    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
 kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
 ax.legend()
@@ -134,19 +137,19 @@ ax.set_title('original data')
 
 # %% Data Cleaning
 
-kW.loc[:,'Main_MTU_Mod'] = kW.loc[:,'Main_MTU'] - 0.05
-kW.loc[kW.Main_MTU_Mod<0, 'Main_MTU_Mod'] = np.nan
-kW.loc[:,'Out_Plugs_Mod'] = kW.loc[:,'Out_Plugs'] #* 0.8
-kW.loc[:,'Gar_Dryer_Mod'] = kW.loc[:,'Gar_Dryer'] #* 1.05
-kW.loc[:,'K_Oven_Mod'] = kW.loc[:,'K_Oven'] #* 1.05
-kW.loc[:,'Garage_Mod'] = kW.loc[:,'Garage'] * 1
-kW.loc[:,'K_Fridge_Mod'] = kW.loc[:,'K_Fridge'] * 1
-kW.loc[:,'Living_Rm_Mod'] = kW.loc[:,'Living_Rm'] #* 0.5  # was 0.75 on ECC
-kW.loc[:,'Bed_G_Off_Mod'] = kW.loc[:,'Bed_G_Off'] #* 0.5  # was 0.75 on ECC
-kW.loc[:,'K_DishW_Mod'] = kW.loc[:,'K_DishW'] #* 0.4
-kW.loc[:,'Bed_Main_Mod'] = kW.loc[:,'Bed_Main'] #* 0.4
-kW.loc[:,'DHWHP_Spy_Mod'] = kW.loc[:,'DHWHP_Spy'] * 0.71 # was 0.71 on ECC (both channels)
-kW.sort_index(axis=1, inplace=True)
+kW_mod = kW.copy()
+
+kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.08
+kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.08
+kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.05
+# kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 1
+# kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 1
+kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75  # was 0.75 on ECC
+kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.85  # was 0.75 on ECC
+kW_mod.loc[:,'K_DishW'] = kW.loc[:,'K_DishW'] * 0.75
+kW_mod.loc[:,'Bed_Main'] = kW.loc[:,'Bed_Main'] * 0.85
+kW_mod.loc[:,'DHWHP_Spy'] = kW.loc[:,'DHWHP_Spy'] * 0.71 # was 0.71 on ECC (both channels)
+kW_mod.sort_index(axis=1, inplace=True)
 
 """
 NOTE: On Aug 25 at ~ 6PM I changed all the spyder multipliers on the ECC back to 1 or 2
@@ -154,6 +157,21 @@ I also added a second spyder legg for the double-pole of the Oven and for the Di
 finished at ~6:26PM
 """
 
+# %%
+
+kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
+kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHWHP_Spy','Main_MTU']).sum(axis=1)
+
+kW_mod.loc[:,'Main_MTU'] = kW_mod.loc[:,'Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
+kW_tot_compare['Main_MTU'] = kW_mod['Main_MTU']
+
+# %% Plot Power Total Comparison
+
+fig, ax = plt.subplots(1, 1, tight_layout=True)
+kW_tot_compare.plot(ax=ax,alpha=0.75, x_compat=True)
+ax.legend()
+ax.set_ylabel('Power (kW)')
+ax.set_title('Compare totals')
 
 # %% 
 
@@ -164,29 +182,38 @@ tab20
 """
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.drop(columns=['K_Plg_2', 'K_Plg_4',
-    'DHWHP_Spy','DHWHP_Spy_Mod', 'Main_MTU', 'Main_MTU_Mod', 'Gar_Dryer', 'K_Oven', 'Out_Plugs',
-    'Garage', 'K_Fridge', 'Living_Rm', 'Bed_G_Off', 'K_DishW', 'Bed_Main']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow)
+kW_mod.drop(columns=['DHWHP_Spy','Main_MTU']
+    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
-kW.Main_MTU_Mod.plot(color='k',linestyle='-', ax=ax)
+kW_mod.Main_MTU.plot(color='k',linestyle='-', ax=ax)
 ax.legend()
 ax.set_ylabel('Power (kW)')
 ax.set_title('cleaned data')
 
-# %%
+
+# %% DHW Spyder Comparison
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.loc[:,['DHWHP_Spy_Mod','DHW_MTU']].plot(ax=ax,alpha=0.35)
+kW_mod.loc[:,['DHWHP_Spy','DHW_MTU']].plot(ax=ax,alpha=0.35, x_compat=True)
 ax.legend()
 ax.set_ylabel('Power (kW)')
 ax.set_title('DHW HP')
 
-# %%
+
+
+#%% 
+
+kWh = kW_tot_compare.resample('1H').mean()
+kWh['Missing'] = kWh.Main_MTU - kWh.Spy_Sum
+
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.loc[:,['K_Plg_1Is']].plot(ax=ax,alpha=0.35)
+kWh.plot(ax=ax,alpha=0.75, x_compat=True)
 ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('Kitchen Plugs')
+ax.set_ylabel('Energy (kWh)')
+ax.set_title('Compare totals')
+ax.axhline(color='k')
+
+# %% print table
+print(kWh.resample('1d').sum())
 
