@@ -64,16 +64,15 @@ RAWDataPath = CWD.joinpath('Data_Raw')
 print('\nSource Data (Raw) Folder')
 print(RAWDataPath)
 
-# %%
-
+# %% get file paths to all the csvs
 
 data_files = {}
 
 for f in RAWDataPath.glob('*.csv'):
     data_files[f.stem] = f
     
-    
-# %%
+# %% Read csvs and store as DataFrames in a dictionary
+
 col_names = [
     'Circuit',
     'Date_Time',
@@ -86,63 +85,55 @@ data_dict = {}
 
 for n, f in data_files.items():
     data_dict[n] = pd.read_csv(f, names=col_names)
-    
+
+
+# %% Combine data into one dataframe and drop duplicates
     
 data_raw = pd.concat(data_dict)
-
-# %%
-
-# print(data.set_index('Date_Time', append=True))
 data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
-
-# %%
+# not efficient to parse datetime here
 # data_WIP.loc[:,'Date_Time'] = pd.to_datetime(data_WIP.Date_Time)
 
 
 # %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
-
 kW.index = pd.to_datetime(kW.index)
 
-# %% Plot Original Data Line Graph
+# %% Plot Original Data Line Graph Spyders only
 
-if True:
+if False:
     fig, ax = plt.subplots(1, 1, tight_layout=True)
-    # kW.drop(columns=[
-    #     'DHWHP_Spy','Main_MTU']
-    #     ).plot(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
-    kW[['Bed_G_Off', 'Bed_Main']].plot(ax=ax)
-    
-    # kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+    kW.drop(columns=['Main_MTU', 'DHW_MTU']
+        ).plot(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
     ax.legend()
     ax.set_ylabel('Power (kW)')
-    ax.set_title('original data lines')
+    ax.set_title('original spyder data - lines')
 
-# %% Data Cleaning
+# %% Data Cleaning - filter noise
 
 for col in kW.columns:
     kW.loc[kW[col]<0, col] = np.nan
     kW.loc[kW[col]>1000, col] = np.nan
 
-# %% Plot Original Data
+# %% Plot Original Data Area Graph
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.drop(columns=['DHWHP_Spy','Main_MTU']
+kW.drop(columns=['DHW_MTU','Main_MTU']
     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
 kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
 ax.legend()
 ax.set_ylabel('Power (kW)')
-ax.set_title('original data')
+ax.set_title('Original Power Data - Area')
 
-# %% Data Cleaning
+# %% Data Cleaning - Spyder Leg Calibration
 
 kW_mod = kW.copy()
 
 kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.08
 kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.08
 kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.05
-# kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 1
+kW_mod.loc[:,'Out_Plugs'] = kW.loc[:,'Out_Plugs'] * 0.55
 # kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 1
 kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75  # was 0.75 on ECC
 kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.85  # was 0.75 on ECC
@@ -157,13 +148,41 @@ I also added a second spyder legg for the double-pole of the Oven and for the Di
 finished at ~6:26PM
 """
 
-# %%
+
+# %% Cleaned Power Data Area Plot
+
+"""
+XKCD_COLORS
+CSS4_COLORS
+tab20
+"""
+
+fig, ax = plt.subplots(1, 1, tight_layout=True)
+kW_mod.drop(columns=['DHW_MTU','Main_MTU']
+    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
+
+kW_mod.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+ax.legend()
+ax.set_ylabel('Power (kW)')
+ax.set_title('Cleaned Power Data - Area')
+
+
+# %% DHW Spyder Vs MTU Comparison
+
+fig, ax = plt.subplots(1, 1, tight_layout=True)
+kW_mod.loc[:,['DHWHP_Spy','DHW_MTU']].plot(ax=ax,alpha=0.35, x_compat=True)
+ax.legend()
+ax.set_ylabel('Power (kW)')
+ax.set_title('DHW HP Spyder vs MTU')
+
+
+# %% Total Power Comparison 
+# - uses spyder data for DHW
+# fill Main MTU data using spyder sum
 
 kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
-kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHWHP_Spy','Main_MTU']).sum(axis=1)
-
-kW_mod.loc[:,'Main_MTU'] = kW_mod.loc[:,'Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
-kW_tot_compare['Main_MTU'] = kW_mod['Main_MTU']
+kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU']).sum(axis=1)
+kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
 
 # %% Plot Power Total Comparison
 
@@ -173,45 +192,62 @@ ax.legend()
 ax.set_ylabel('Power (kW)')
 ax.set_title('Compare totals')
 
-# %% 
 
-"""
-XKCD_COLORS
-CSS4_COLORS
-tab20
-"""
+# %% import BC Hydro data
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW_mod.drop(columns=['DHWHP_Spy','Main_MTU']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
+BCH_data_files = {}
 
-kW_mod.Main_MTU.plot(color='k',linestyle='-', ax=ax)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('cleaned data')
+for f in RAWDataPath.joinpath('BC_Hydro').glob('*.csv'):
+    BCH_data_files[f.stem] = f
 
 
-# %% DHW Spyder Comparison
+# BCH_col_names = [
+#     'Circuit',
+#     'Date_Time',
+#     'kW',
+#     'cost',
+#     'Voltage',
+#     'PF',
+#     ]
+BCH_data_dict = {}
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW_mod.loc[:,['DHWHP_Spy','DHW_MTU']].plot(ax=ax,alpha=0.35, x_compat=True)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('DHW HP')
+for n, f in BCH_data_files.items():
+    BCH_data_dict[n] = pd.read_csv(f)
+    
+# %% Combine BCH data into one dataframe and drop duplicates
+
+'''
+['Account Number', 'Interval Start Date/Time', 'Net Consumption (kWh)',
+       'Demand (kW)', 'Power Factor (%)']
+'''
+
+BCH_data_raw = pd.concat(BCH_data_dict)
+BCH_data_WIP = BCH_data_raw.drop_duplicates(subset=['Interval Start Date/Time'])
+BCH_data_WIP['Date_Time'] = pd.to_datetime(BCH_data_WIP['Interval Start Date/Time'])
+BCH_data_WIP['Date_Time'] = BCH_data_WIP.Date_Time.dt.floor('Min')
+
+# %% create df with only energy and set datetime index
+BCH_kWh = BCH_data_WIP.pivot(index='Date_Time', 
+                             columns='Account Number', 
+                             values='Net Consumption (kWh)')
+BCH_kWh.index = pd.to_datetime(BCH_kWh.index)
 
 
-
-#%% 
+#%% calculate hourly energy and combine TED and BCH data
 
 kWh = kW_tot_compare.resample('1H').mean()
-kWh['Missing'] = kWh.Main_MTU - kWh.Spy_Sum
+kWh['MTU_Spy_Diff'] = kWh.Main_MTU - kWh.Spy_Sum
+kWh.loc[kWh['MTU_Spy_Diff']<0, 'MTU_Spy_Diff'] = np.nan
+kWh['BCH'] = BCH_kWh[12014857]
+kWh['MTU_BCH_Diff'] = kWh.Main_MTU - kWh.BCH
 
+# %% Plot hourly Energy data
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
 kWh.plot(ax=ax,alpha=0.75, x_compat=True)
 ax.legend()
 ax.set_ylabel('Energy (kWh)')
-ax.set_title('Compare totals')
+ax.set_title('Compare totals - Energy')
 ax.axhline(color='k')
 
 # %% print table
