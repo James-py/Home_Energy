@@ -35,22 +35,25 @@ otherplots = False
 # %% Plotting Functions
 
 
-def simple_plot(df, caption, vertLine=1000, xlab='', ylab=''):
+def simple_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
+                legend=False,):
     fig, ax = plt.subplots(1, 1, tight_layout=True, num=caption)
-    df.plot(ax=ax, marker='.', alpha=0.35, linestyle='None')
+    df.plot(ax=ax, marker='.', alpha=0.35, linestyle='None',legend=legend,
+            x_compat=True)
     if vertLine != 1000:
         plt.axvline(vertLine)
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
 
 
-def energy_plot(df, title, onOff=False):
-    fig, ax = plt.subplots(1, 1, tight_layout=True, num=title)
-    df.plot(ax=ax, marker='.', alpha=0.5, linestyle='None',
-            legend=onOff)
-    ax.set_ylabel("Daily Energy Consumed (kWh)")
+def area_plot(df, caption, legend=False, ylab=''):
+    fig, ax = plt.subplots(1, 1, tight_layout=True, num=caption)
+    df.plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True, legend=legend)
+    # marker='.', alpha=0.5,linestyle='None',
+    ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
-    ax.set_title(title+'\n(n='+str(len(df.columns))+')')
+    # ax.set_title(caption+'\n(n='+str(len(df.columns))+')')
+
 
 # %% set up folder paths
 
@@ -102,8 +105,8 @@ kW.index = pd.to_datetime(kW.index)
 # %% Plot Original Data Line Graph Spyders only
 
 if False:
-    fig, ax = plt.subplots(1, 1, tight_layout=True)
-    kW.drop(columns=['Main_MTU', 'DHW_MTU']
+    fig, ax = plt.subplots(1, 1)
+    kW.drop(columns=['Main_MTU', 'DHW_MTU','Test_MTU']
         ).plot(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
     ax.legend()
     ax.set_ylabel('Power (kW)')
@@ -115,10 +118,13 @@ for col in kW.columns:
     kW.loc[kW[col]<0, col] = np.nan
     kW.loc[kW[col]>1000, col] = np.nan
 
+# %% Data Cleaning - Drop duplicate Oven data
+
+kW.loc['2023-09-20 12:00':,'K_Oven'] = np.nan
 # %% Plot Original Data Area Graph
 
 fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW.drop(columns=['DHW_MTU','Main_MTU']
+kW.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
 kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
@@ -133,10 +139,11 @@ kW_mod = kW.copy()
 # kW_mod.loc[:,'K_Plg_1Is'] = kW.loc[:,'K_Plg_1Is'] * 0.95
 kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.04
 kW_mod.loc[:,'K_DishW'] = kW.loc[:,'K_DishW'] * 0.75
-kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.04
+kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.1
 kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.04
 kW_mod.loc[:,'Out_Plugs'] = kW.loc[:,'Out_Plugs'] * 0.55
-kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 0.95
+kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 0.85
+kW_mod.loc[:,'Freezer'] = kW.loc[:,'Freezer'] * 0.85
 kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 0.95
 kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75  # was 0.75 on ECC
 kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.75  # was 0.75 on ECC
@@ -157,11 +164,11 @@ finished at ~6:26PM
 # fill Main MTU data using spyder sum
 
 kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
-kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU']).sum(axis=1)
+kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']).sum(axis=1)
 kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
 
-kW_mod['Spy_missing'] = kW_mod['Main_MTU'] - kW_tot_compare['Spy_Sum']
-kW_mod.loc[kW_mod['Spy_missing']<0, 'Spy_missing'] = 0
+# kW_mod['Spy_missing'] = kW_mod['Main_MTU'] - kW_tot_compare['Spy_Sum']
+# kW_mod.loc[kW_mod['Spy_missing']<0, 'Spy_missing'] = 0
 
 
 # %% Cleaned Power Data Area Plot
@@ -172,8 +179,8 @@ CSS4_COLORS
 tab20
 """
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
-kW_mod.drop(columns=['DHW_MTU','Main_MTU']
+fig, ax = plt.subplots(1, 1) #), tight_layout=True)
+kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
 kW_mod.Main_MTU.plot(color='k',linestyle='-', ax=ax)
@@ -184,7 +191,7 @@ ax.set_title('Cleaned Power Data - Area')
 
 # %% DHW Spyder Vs MTU Comparison Plot
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
+fig, ax = plt.subplots(1, 1)
 kW_mod.loc[:,['DHWHP_Spy','DHW_MTU']].plot(ax=ax,alpha=0.35, x_compat=True)
 ax.legend()
 ax.set_ylabel('Power (kW)')
@@ -193,7 +200,7 @@ ax.set_title('DHW HP Spyder vs MTU')
 
 # %% Plot Power Total Comparison
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
+fig, ax = plt.subplots(1, 1)
 kW_tot_compare.plot(ax=ax,alpha=0.75, x_compat=True)
 ax.legend()
 ax.set_ylabel('Power (kW)')
@@ -245,8 +252,8 @@ BCH_kWh.index = pd.to_datetime(BCH_kWh.index)
 kWh = kW_mod.resample('1H').mean()
 
 # %% Plot Energy Area
-fig, ax = plt.subplots(1, 1, tight_layout=True)
-kWh.drop(columns=['DHW_MTU','Main_MTU']
+fig, ax = plt.subplots(1, 1)
+kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
 kWh.Main_MTU.plot(color='k',linestyle='-', ax=ax)
@@ -258,17 +265,17 @@ ax.set_title('Cleaned Energy Data - Area')
 # %% Total Energy Compare and combine TED and BCH data
 
 kWh_tot_compare = pd.DataFrame(kWh[['Main_MTU', 'DHWHP_Spy']])
-kWh_tot_compare['Spy_Sum'] = kWh.drop(columns=['DHW_MTU','Main_MTU']).sum(axis=1)
+kWh_tot_compare['Spy_Sum'] = kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']).sum(axis=1)
 kWh_tot_compare['Main_MTU'] = kWh['Main_MTU'].fillna(kWh_tot_compare.Spy_Sum)
 kWh_tot_compare['MTU_Spy_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.Spy_Sum
 
-kWh_tot_compare.loc[kWh_tot_compare['MTU_Spy_Diff']<0, 'MTU_Spy_Diff'] = np.nan
+# kWh_tot_compare.loc[kWh_tot_compare['MTU_Spy_Diff']<0, 'MTU_Spy_Diff'] = np.nan
 kWh_tot_compare['BCH'] = BCH_kWh[12014857]
 kWh_tot_compare['MTU_BCH_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
 
 # %% Plot hourly Energy data
 
-fig, ax = plt.subplots(1, 1, tight_layout=True)
+fig, ax = plt.subplots(1, 1)
 kWh_tot_compare.drop(columns=['DHWHP_Spy']).plot(ax=ax,alpha=0.75, x_compat=True)
 ax.legend()
 ax.set_ylabel('Energy (kWh)')
@@ -289,3 +296,8 @@ print("Average daily DHW HP Energy Consumption:",
 # print table
 print(kWh_daily)
 
+    
+# %% One-off Plot
+
+simple_plot(kWh.filter(like='Is'), 'Island', ylab='hourly energy kWh',
+          legend=True)
