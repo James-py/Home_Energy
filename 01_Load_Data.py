@@ -145,19 +145,42 @@ kW_mod.drop(columns=['DHWHP_Sp1','DHWHP_Sp2'], inplace=True)
 
 # %% Data Cleaning - Spyder Leg Calibration
 
+
+
 # kW_mod.loc[:,'K_Plg_1Is'] = kW.loc[:,'K_Plg_1Is'] * 0.95
-kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.04
-kW_mod.loc[:,'K_DishW'] = kW.loc[:,'K_DishW'] * 0.75
-kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.1
-kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.04
-kW_mod.loc[:,'Out_Plugs'] = kW.loc[:,'Out_Plugs'] * 0.55
-kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 0.85
-kW_mod.loc[:,'Freezer'] = kW.loc[:,'Freezer'] * 0.85
-kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 0.95
-kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75  # was 0.75 on ECC
-kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.75  # was 0.75 on ECC
-kW_mod.loc[:,'Bed_Main'] = kW.loc[:,'Bed_Main'] * 0.75
-kW_mod.loc[:,'DHWHP_Spy'] = kW.loc[:,'DHWHP_Spy'] * 0.71 # was 0.71 on ECC (both channels)
+# kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.04
+# kW_mod.loc[:,'K_DishW'] = kW.loc[:,'K_DishW'] * 0.75
+# kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.1
+# kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.04
+# kW_mod.loc[:,'Out_Plugs'] = kW.loc[:,'Out_Plugs'] * 0.55
+# kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 0.85
+# kW_mod.loc[:,'Freezer'] = kW.loc[:,'Freezer'] * 0.85
+# kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 0.95
+# kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75 
+# kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.75 
+# kW_mod.loc[:,'Bed_Main'] = kW.loc[:,'Bed_Main'] * 0.75
+# kW_mod.loc[:,'DHWHP_Spy'] = kW.loc[:,'DHWHP_Spy'] * 0.71 
+
+
+calibration_dict = {
+    'K_Plg_4Ts':1.04,
+    'K_DishW':0.75,
+    'Gar_Dryer':1.1,
+    'K_Oven':1.04,
+    'Out_Plugs':0.55,
+    'Garage':0.85,
+    'Freezer':0.85,
+    'K_Fridge':0.95,
+    'Living_Rm':0.75, 
+    'Bed_G_Off':0.75, 
+    'Bed_Main':0.75,
+    'DHWHP_Spy':0.71, 
+    'K_Plg_2MW':0.75, 
+    }
+
+for circuit, multiplier in calibration_dict.items():
+    kW_mod.loc[:,circuit] = kW.loc[:,circuit] * multiplier
+    
 kW_mod.sort_index(axis=1, inplace=True)
 
 
@@ -168,42 +191,56 @@ finished at ~6:26PM
 """
 
 
-# %% Data Cleaning - fill K_Oven
+# %% Data Cleaning - double pole circuits
+'''
+some double pole circuits are symmetrical, so I don't need to use two spyder CTs
+I started with two, and then changed to using just one CT
+That meant changing the multiplier on the MTU and creating extra channels of 
+data while I was checking things
+created some irregular data
+This section fixes that
+- combines the extra data channels back into one and drops the extra channels
 
-# kW_mod.loc[:,'K_Oven'] = kW_mod.loc[:,'K_Oven'].fillna(kW.K_Oven1*2)
-# kW_mod.loc[:,'K_Oven'] = kW_mod.loc[:,'K_Oven'].fillna(kW.K_Oven2*2)
+'''
 
-kW_mod.loc[kW.K_Oven1>0,'K_Oven'] = kW.loc[
-           kW.K_Oven1>0,['K_Oven1','K_Oven2']].sum(axis=1) * 1.04
-# kW_mod.loc[kW.K_Oven2>0,'K_Oven'] = kW.loc[kW.K_Oven2>0,'K_Oven2'] * 2
+def fix_double_pole(df_mod, df, circuit, c1, c2, multiplier):
+    df_mod.loc[df[c1]>0,circuit] = df.loc[
+        df[c1]>0,[c1,c2]].sum(axis=1) * multiplier
 
-# %% Data Cleaning - fill Heat Pump
+# K_Oven
+fix_double_pole(kW_mod, kW, 'K_Oven', 'K_Oven1','K_Oven2', 1.04)
+# kW_mod.loc[kW.K_Oven1>0,'K_Oven'] = kW.loc[
+#            kW.K_Oven1>0,['K_Oven1','K_Oven2']].sum(axis=1) * 1.04
 
-kW_mod.loc[kW.DHWHP_Sp1>0,'DHWHP_Spy'] = kW.loc[
-           kW.DHWHP_Sp1>0,['DHWHP_Sp1','DHWHP_Sp2']].sum(axis=1) * 0.71
+# DHW Heat Pump
+fix_double_pole(kW_mod, kW, 'DHWHP_Spy', 'DHWHP_Sp1','DHWHP_Sp2', 0.71)
+# kW_mod.loc[kW.DHWHP_Sp1>0,'DHWHP_Spy'] = kW.loc[
+#            kW.DHWHP_Sp1>0,['DHWHP_Sp1','DHWHP_Sp2']].sum(axis=1) * 0.71
 
 
-# %% Fill missing Living Room Data
-# the 30 W appears to be the router that is always on
+# %% Fill Missing Power Load
+# spyder CTs are less accurate and don't reliably detect loads <100 W
+# this fills in a minimum load when ct dectects less than the minimum
 
-kW_mod.loc[kW.Living_Rm<0.03,'Living_Rm'] = 0.03
 
-# %% Fill missing Bedroom Data
-# When nothing else is on, various standby and chargers are still a small load
-
-kW_mod.loc[kW[['Bed_Main','Bed_G_Off']].sum(axis=1)==0, 
-           ['Bed_Main','Bed_G_Off']] = 0.02
+def fill_one_circuit(df_mod, df, circuit, load):
+    df_mod.loc[df[circuit]<load,circuit] = load
+    
+# Living Room: 30 W appears to be the router that is always on    
+fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.03)
+# various standby and chargers in bedrooms are still a small load
+fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.02)
+# raspberry pi and doc
+fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
 
 # kW_mod.loc[kW.Living_Rm<0.03,'Living_Rm'] = 0.03
+# kW_mod.loc[kW[['Bed_Main','Bed_G_Off']].sum(axis=1)==0, 
+#            ['Bed_Main','Bed_G_Off']] = 0.02
 
-# %% Fill missing Freezer Data
+
 # When freezer is on, the spyder seems to underestimate the load sometimes
-
 kW_mod.loc[kW.Freezer.between(0.001,0.03), 'Freezer'] = 0.05
 
-
-
-# kW_mod.loc[kW.Living_Rm<0.03,'Living_Rm'] = 0.03
 
 # %% Total Power Comparison Calcs
 # - uses spyder data for DHW
@@ -343,7 +380,7 @@ print(kWh_daily)
     
 # %% One-off Plot
 
-area_plot(kWh.filter(like='DHWHP'), 'Heat Pump', ylab='hourly energy kWh',
+simple_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
           legend=True)
 
 # %% One-off Plot
