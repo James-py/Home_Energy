@@ -170,8 +170,8 @@ calibration_dict = {
     'Out_Plugs':0.55,
     'Garage':0.85,
     'Freezer':0.85,
-    'K_Fridge':0.95,
-    'Living_Rm':0.75, 
+    'K_Fridge':0.85,
+    'Living_Rm':0.65, 
     'Bed_G_Off':0.75, 
     'Bed_Main':0.75,
     'DHWHP_Spy':0.71, 
@@ -227,7 +227,7 @@ def fill_one_circuit(df_mod, df, circuit, load):
     df_mod.loc[df[circuit]<load,circuit] = load
     
 # Living Room: 30 W appears to be the router that is always on    
-fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.03)
+fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.035)
 # various standby and chargers in bedrooms are still a small load
 fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.02)
 # raspberry pi and doc
@@ -332,7 +332,7 @@ BCH_kWh = BCH_data_WIP.pivot(index='Date_Time',
 
 kWh = kW_mod.resample('1H').mean()
 
-# %% Plot Energy Area
+# %% Plot Hourly Energy Area all channels
 fig, ax = plt.subplots(1, 1)
 kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
@@ -378,12 +378,17 @@ print("Average daily DHW HP Energy Consumption:",
 print(kWh_daily)
 
     
-# %% One-off Plot
+# %% One-off dots Plot
 
 simple_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
           legend=True)
 
-# %% One-off Plot
+# %% One-off area Plot
 
 area_plot(kW_mod.filter(like='Oven'), 'Oven', ylab='power kW',
+          legend=True)
+
+# %% One-off dots Plot
+
+simple_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
           legend=True)
