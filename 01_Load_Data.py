@@ -18,6 +18,48 @@ import matplotlib.pyplot as plt
 # import matplotlib as mpl
 # import matplotlib.colors as mcolors
 from matplotlib import cm
+from matplotlib.colors import ListedColormap
+
+
+# %% create my custom colourmap
+
+"""
+XKCD_COLORS
+CSS4_COLORS
+tab20
+"""
+
+cmap = ListedColormap(["darkorange", 
+                       "forestgreen",
+                       "slategrey",
+                       "gold",
+                       "lime",
+                       "royalblue",
+                       "lightcoral",
+                       "lightgreen",
+                       'blue',
+                       'red',
+                       'yellow',
+                       "seagreen",
+                       'fuchsia',
+                       'cyan',
+                       'indigo',
+                       'olive',
+                       'tan',
+                       'skyblue',
+                       'salmon',
+                       'darkseagreen',
+                       'limegreen',
+                       'violet',
+                       'darkblue',
+                       'chocolate',
+                       'silver',
+                       'orange',
+                       'deeppink'
+                       ])
+
+
+# %% close all figures
 
 plt.close(fig='all')
 
@@ -34,11 +76,11 @@ otherplots = False
 
 # %% Plotting Functions
 
-
-def simple_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
+def dots_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
                 legend=False,):
-    fig, ax = plt.subplots(1, 1, tight_layout=True) #, num=caption)
-    df.plot(ax=ax, marker='.', alpha=0.35, linestyle='None',legend=legend,
+    fig, ax = plt.subplots(1, 1)
+    df.plot(ax=ax, colormap=cmap,
+            marker='.', alpha=0.35, linestyle='None',legend=legend,
             x_compat=True)
     if vertLine != 1000:
         plt.axvline(vertLine)
@@ -46,15 +88,26 @@ def simple_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
     ax.set_ylabel(ylab)
     ax.set_title(caption)
 
-
-def area_plot(df, caption, legend=False, ylab=''):
-    fig, ax = plt.subplots(1, 1, tight_layout=True) #, num=caption)
-    df.plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True, legend=legend)
-    # marker='.', alpha=0.5,linestyle='None',
+def area_plot(df, caption, drop_list=[], main_line=False, 
+              legend=False, ylab=''):
+    fig, ax = plt.subplots(1, 1)
+    df.drop(columns=drop_list).plot.area(
+        ax=ax, colormap=cmap, x_compat=True, legend=legend)
+    if main_line:
+        df.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+        ax.legend()
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
 
+def lines_plot(df, caption, drop_list=[], legend=True, ylab=''):
+    fig, ax = plt.subplots(1, 1)
+    df.drop(columns=drop_list).plot(alpha=0.75,
+        ax=ax, colormap=cmap, legend=legend, x_compat=True)
+    ax.set_ylabel(ylab)
+    ax.set_xlabel("Date / Time")
+    ax.set_title(caption)
+    ax.axhline(color='k')
 
 # %% set up folder paths
 
@@ -95,23 +148,11 @@ for n, f in data_files.items():
     
 data_raw = pd.concat(data_dict)
 data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
-# not efficient to parse datetime here
-# data_WIP.loc[:,'Date_Time'] = pd.to_datetime(data_WIP.Date_Time)
-
 
 # %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
 kW.index = pd.to_datetime(kW.index)
 
-# %% Plot Original Data Line Graph Spyders only
-
-if False:
-    fig, ax = plt.subplots(1, 1)
-    kW.drop(columns=['Main_MTU', 'DHW_MTU','Test_MTU']
-        ).plot(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
-    ax.legend()
-    ax.set_ylabel('Power (kW)')
-    ax.set_title('original spyder data - lines')
 
 # %% Data Cleaning - filter noise
 
@@ -119,22 +160,11 @@ for col in kW.columns:
     kW.loc[kW[col]<0, col] = np.nan
     kW.loc[kW[col]>1000, col] = np.nan
 
-
-
-# %%
-
-
-# kW.loc['2023-09-20 22:00':,'K_Oven'] = np.nan
 # %% Plot Original Data Area Graph
 
-fig, ax = plt.subplots(1, 1)
-kW.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
-
-kW.Main_MTU.plot(color='k',linestyle='-', ax=ax)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('Original Power Data - Area')
+area_plot(kW, 'Original Power Data - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Power (kW)')
 
 # %% Make a copy of the kW data for data cleaning
 # Drop duplicate Oven data
@@ -145,29 +175,12 @@ kW_mod.drop(columns=['DHWHP_Sp1','DHWHP_Sp2'], inplace=True)
 
 # %% Data Cleaning - Spyder Leg Calibration
 
-
-
-# kW_mod.loc[:,'K_Plg_1Is'] = kW.loc[:,'K_Plg_1Is'] * 0.95
-# kW_mod.loc[:,'K_Plg_4Ts'] = kW.loc[:,'K_Plg_4Ts'] * 1.04
-# kW_mod.loc[:,'K_DishW'] = kW.loc[:,'K_DishW'] * 0.75
-# kW_mod.loc[:,'Gar_Dryer'] = kW.loc[:,'Gar_Dryer'] * 1.1
-# kW_mod.loc[:,'K_Oven'] = kW.loc[:,'K_Oven'] * 1.04
-# kW_mod.loc[:,'Out_Plugs'] = kW.loc[:,'Out_Plugs'] * 0.55
-# kW_mod.loc[:,'Garage'] = kW.loc[:,'Garage'] * 0.85
-# kW_mod.loc[:,'Freezer'] = kW.loc[:,'Freezer'] * 0.85
-# kW_mod.loc[:,'K_Fridge'] = kW.loc[:,'K_Fridge'] * 0.95
-# kW_mod.loc[:,'Living_Rm'] = kW.loc[:,'Living_Rm'] * 0.75 
-# kW_mod.loc[:,'Bed_G_Off'] = kW.loc[:,'Bed_G_Off'] * 0.75 
-# kW_mod.loc[:,'Bed_Main'] = kW.loc[:,'Bed_Main'] * 0.75
-# kW_mod.loc[:,'DHWHP_Spy'] = kW.loc[:,'DHWHP_Spy'] * 0.71 
-
-
 calibration_dict = {
     'K_Plg_4Ts':1.04,
     'K_DishW':0.75,
     'Gar_Dryer':1.1,
     'K_Oven':1.04,
-    'Out_Plugs':0.55,
+    'Out_Plugs':0.75,
     'Garage':0.85,
     'Freezer':0.85,
     'K_Fridge':0.85,
@@ -209,13 +222,9 @@ def fix_double_pole(df_mod, df, circuit, c1, c2, multiplier):
 
 # K_Oven
 fix_double_pole(kW_mod, kW, 'K_Oven', 'K_Oven1','K_Oven2', 1.04)
-# kW_mod.loc[kW.K_Oven1>0,'K_Oven'] = kW.loc[
-#            kW.K_Oven1>0,['K_Oven1','K_Oven2']].sum(axis=1) * 1.04
 
 # DHW Heat Pump
 fix_double_pole(kW_mod, kW, 'DHWHP_Spy', 'DHWHP_Sp1','DHWHP_Sp2', 0.71)
-# kW_mod.loc[kW.DHWHP_Sp1>0,'DHWHP_Spy'] = kW.loc[
-#            kW.DHWHP_Sp1>0,['DHWHP_Sp1','DHWHP_Sp2']].sum(axis=1) * 0.71
 
 
 # %% Fill Missing Power Load
@@ -232,12 +241,6 @@ fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.035)
 fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.02)
 # raspberry pi and doc
 fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
-
-# kW_mod.loc[kW.Living_Rm<0.03,'Living_Rm'] = 0.03
-# kW_mod.loc[kW[['Bed_Main','Bed_G_Off']].sum(axis=1)==0, 
-#            ['Bed_Main','Bed_G_Off']] = 0.02
-
-
 # When freezer is on, the spyder seems to underestimate the load sometimes
 kW_mod.loc[kW.Freezer.between(0.001,0.03), 'Freezer'] = 0.05
 
@@ -250,45 +253,16 @@ kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
 kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']).sum(axis=1)
 kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
 
-# kW_mod['Spy_missing'] = kW_mod['Main_MTU'] - kW_tot_compare['Spy_Sum']
-# kW_mod.loc[kW_mod['Spy_missing']<0, 'Spy_missing'] = 0
-
-
 # %% Plot Cleaned Power Data Area
 
-"""
-XKCD_COLORS
-CSS4_COLORS
-tab20
-"""
-
-fig, ax = plt.subplots(1, 1) #), tight_layout=True)
-kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
-
-kW_mod.Main_MTU.plot(color='k',linestyle='-', ax=ax)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('Cleaned Power Data - Area')
-
-
-
-# %% Plot DHW Spyder Vs MTU Comparison
-fig, ax = plt.subplots(1, 1)
-kW_mod.loc[:,['DHWHP_Spy','DHW_MTU']].plot(ax=ax,alpha=0.35, x_compat=True)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('DHW HP Spyder vs MTU')
-
+area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Power (kW)')
 
 # %% Plot Power Total Comparison
 
-fig, ax = plt.subplots(1, 1)
-kW_tot_compare.plot(ax=ax,alpha=0.75, x_compat=True)
-ax.legend()
-ax.set_ylabel('Power (kW)')
-ax.set_title('Compare totals')
-
+lines_plot(kW_tot_compare, 'MTU and Spyder Total Power Comparison', 
+           drop_list=[], legend=True, ylab='Power (kW)')
 
 # %% import BC Hydro data
 
@@ -333,14 +307,20 @@ BCH_kWh = BCH_data_WIP.pivot(index='Date_Time',
 kWh = kW_mod.resample('1H').mean()
 
 # %% Plot Hourly Energy Area all channels
-fig, ax = plt.subplots(1, 1)
-kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
-    ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
 
-kWh.Main_MTU.plot(color='k',linestyle='-', ax=ax)
-ax.legend()
-ax.set_ylabel('Hourly Energy (kWh)')
-ax.set_title('Cleaned Energy Data - Area')
+area_plot(kWh, 'Hourly Energy - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Hourly Energy (kWh)')
+
+
+# fig, ax = plt.subplots(1, 1)
+# kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
+#     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
+
+# kWh.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+# ax.legend()
+# ax.set_ylabel('Hourly Energy (kWh)')
+# ax.set_title('Cleaned Energy Data - Area')
 
 
 # %% Total Energy Compare and combine TED and BCH data
@@ -356,12 +336,17 @@ kWh_tot_compare['MTU_BCH_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
 
 # %% Plot Hourly Energy Total Comparison
 
-fig, ax = plt.subplots(1, 1)
-kWh_tot_compare.drop(columns=['DHWHP_Spy']).plot(ax=ax,alpha=0.75, x_compat=True)
-ax.legend()
-ax.set_ylabel('Energy (kWh)')
-ax.set_title('Compare totals - Energy')
-ax.axhline(color='k')
+
+lines_plot(kWh_tot_compare, 'MTU and Spyder Total Power Comparison', 
+           drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
+
+
+# fig, ax = plt.subplots(1, 1)
+# kWh_tot_compare.drop(columns=['DHWHP_Spy']).plot(ax=ax,alpha=0.75, x_compat=True)
+# ax.legend()
+# ax.set_ylabel('Energy (kWh)')
+# ax.set_title('Compare totals - Energy')
+# ax.axhline(color='k')
 
 # %% Daily Energy Totals
 
@@ -380,7 +365,7 @@ print(kWh_daily)
     
 # %% One-off dots Plot
 
-simple_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
+dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
           legend=True)
 
 # %% One-off area Plot
@@ -390,5 +375,12 @@ area_plot(kW_mod.filter(like='Oven'), 'Oven', ylab='power kW',
 
 # %% One-off dots Plot
 
-simple_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
+dots_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
           legend=True)
+
+
+# %% Plot Original Data Line Graph Spyders only
+
+lines_plot(kW, 'original spyder data - lines', 
+           drop_list=['Main_MTU', 'DHW_MTU','Test_MTU'], 
+           legend=True, ylab='Power (kW)')
