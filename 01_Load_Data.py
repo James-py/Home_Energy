@@ -172,13 +172,15 @@ area_plot(kW, 'Original Power Data - Area', main_line=True,
 kW_mod = kW.copy()
 kW_mod.drop(columns=['K_Oven1','K_Oven2'], inplace=True)
 kW_mod.drop(columns=['DHWHP_Sp1','DHWHP_Sp2'], inplace=True)
+kW_mod.drop(columns=['K_DishW_1','K_DishW_2'], inplace=True)
+kW_mod.drop(columns=['Gar_Dry1','Gar_Dry2'], inplace=True)
 
 # %% Data Cleaning - Spyder Leg Calibration
 
 calibration_dict = {
     'K_Plg_4Ts':1.04,
-    'K_DishW':0.75,
-    'Gar_Dryer':1.1,
+    'K_DishW':0.55,
+    'Gar_Dryer':1.01,
     'K_Oven':1.04,
     'Out_Plugs':0.75,
     'Garage':0.85,
@@ -186,7 +188,7 @@ calibration_dict = {
     'K_Fridge':0.85,
     'Living_Rm':0.65, 
     'Bed_G_Off':0.75, 
-    'Bed_Main':0.75,
+    'Bed_Main':0.60,
     'DHWHP_Spy':0.71, 
     'K_Plg_2MW':0.75, 
     }
@@ -219,12 +221,19 @@ This section fixes that
 def fix_double_pole(df_mod, df, circuit, c1, c2, multiplier):
     df_mod.loc[df[c1]>0,circuit] = df.loc[
         df[c1]>0,[c1,c2]].sum(axis=1) * multiplier
+    df_mod.fillna(0, inplace=True)
 
 # K_Oven
 fix_double_pole(kW_mod, kW, 'K_Oven', 'K_Oven1','K_Oven2', 1.04)
 
 # DHW Heat Pump
 fix_double_pole(kW_mod, kW, 'DHWHP_Spy', 'DHWHP_Sp1','DHWHP_Sp2', 0.71)
+
+# Dishwasher
+fix_double_pole(kW_mod, kW, 'K_DishW', 'K_DishW_2','K_DishW_1', 0.55)
+
+# Laundry Dryer
+fix_double_pole(kW_mod, kW, 'Gar_Dryer', 'Gar_Dry1','Gar_Dry2', 1.01)
 
 
 # %% Fill Missing Power Load
@@ -238,11 +247,11 @@ def fill_one_circuit(df_mod, df, circuit, load):
 # Living Room: 30 W appears to be the router that is always on    
 fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.035)
 # various standby and chargers in bedrooms are still a small load
-fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.02)
+fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.01)
 # raspberry pi and doc
 fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
 # When freezer is on, the spyder seems to underestimate the load sometimes
-kW_mod.loc[kW.Freezer.between(0.001,0.03), 'Freezer'] = 0.05
+kW_mod.loc[kW.Freezer.between(0.01,0.03), 'Freezer'] = 0.05
 
 
 # %% Total Power Comparison Calcs
@@ -312,17 +321,6 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
           legend=True, ylab='Hourly Energy (kWh)')
 
-
-# fig, ax = plt.subplots(1, 1)
-# kWh.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
-#     ).plot.area(ax=ax, colormap=cm.gist_rainbow, x_compat=True)
-
-# kWh.Main_MTU.plot(color='k',linestyle='-', ax=ax)
-# ax.legend()
-# ax.set_ylabel('Hourly Energy (kWh)')
-# ax.set_title('Cleaned Energy Data - Area')
-
-
 # %% Total Energy Compare and combine TED and BCH data
 
 kWh_tot_compare = pd.DataFrame(kWh[['Main_MTU', 'DHWHP_Spy']])
@@ -337,16 +335,9 @@ kWh_tot_compare['MTU_BCH_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
 # %% Plot Hourly Energy Total Comparison
 
 
-lines_plot(kWh_tot_compare, 'MTU and Spyder Total Power Comparison', 
+lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison', 
            drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
 
-
-# fig, ax = plt.subplots(1, 1)
-# kWh_tot_compare.drop(columns=['DHWHP_Spy']).plot(ax=ax,alpha=0.75, x_compat=True)
-# ax.legend()
-# ax.set_ylabel('Energy (kWh)')
-# ax.set_title('Compare totals - Energy')
-# ax.axhline(color='k')
 
 # %% Daily Energy Totals
 
@@ -356,8 +347,8 @@ kWh_daily['MTU_Spy_Diff_pct'] = kWh_daily.MTU_Spy_Diff / kWh_daily.Spy_Sum *100
 kWh_daily['MTU_BCH_Diff_pct'] = kWh_daily.MTU_BCH_Diff / kWh_daily.BCH *100
 
 
-print("Average daily DHW HP Energy Consumption:", 
-      kWh_daily.DHWHP_Spy['2023-09-01':].mean(), "kWh")
+print('\n', "Average daily DHW HP Energy Consumption:", 
+      round(kWh_daily.DHWHP_Spy['2023-09-01':].mean(),2), "kWh",'\n')
 
 # print table
 print(kWh_daily)
@@ -365,22 +356,38 @@ print(kWh_daily)
     
 # %% One-off dots Plot
 
-dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
+# dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
+#           legend=True)
+
+lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
           legend=True)
 
-# %% One-off area Plot
+# # %% One-off area Plot
 
-area_plot(kW_mod.filter(like='Oven'), 'Oven', ylab='power kW',
-          legend=True)
+# area_plot(kW_mod.filter(like='Oven'), 'Oven', ylab='power kW',
+#           legend=True)
+
+# # %% One-off dots Plot
+
+# dots_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
+#           legend=True)
 
 # %% One-off dots Plot
 
-dots_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
+dots_plot(kW_mod[['Bed_Main','Test_MTU']], 'Bed Room Mod', ylab='power kW',
           legend=True)
 
+# # %% One-off dots Plot
 
-# %% Plot Original Data Line Graph Spyders only
+# dots_plot(kW_mod[['K_DishW','Test_MTU']], 'Dishwasher', ylab='power kW',
+#           legend=True)
 
-lines_plot(kW, 'original spyder data - lines', 
-           drop_list=['Main_MTU', 'DHW_MTU','Test_MTU'], 
-           legend=True, ylab='Power (kW)')
+
+# # %% Plot Original Data Line Graph Spyders only
+
+# lines_plot(kW, 'original spyder data - lines', 
+#            drop_list=['Main_MTU', 'DHW_MTU','Test_MTU'], 
+#            legend=True, ylab='Power (kW)')
+
+# dots_plot(kW_mod[['Freezer','Test_MTU']], 'Freezer Mod', ylab='power kW',
+#           legend=True)
