@@ -180,7 +180,7 @@ kW_mod.drop(columns=['Gar_Dry1','Gar_Dry2'], inplace=True)
 calibration_dict = {
     'K_Plg_4Ts':1.04,
     'K_DishW':0.55,
-    'Gar_Dryer':1.01,
+    'Gar_Dryer':1.04,
     'K_Oven':1.04,
     'Out_Plugs':0.75,
     'Garage':0.85,
@@ -221,7 +221,7 @@ This section fixes that
 def fix_double_pole(df_mod, df, circuit, c1, c2, multiplier):
     df_mod.loc[df[c1]>0,circuit] = df.loc[
         df[c1]>0,[c1,c2]].sum(axis=1) * multiplier
-    df_mod.fillna(0, inplace=True)
+    df_mod[circuit].fillna(0, inplace=True)
 
 # K_Oven
 fix_double_pole(kW_mod, kW, 'K_Oven', 'K_Oven1','K_Oven2', 1.04)
@@ -233,7 +233,7 @@ fix_double_pole(kW_mod, kW, 'DHWHP_Spy', 'DHWHP_Sp1','DHWHP_Sp2', 0.71)
 fix_double_pole(kW_mod, kW, 'K_DishW', 'K_DishW_2','K_DishW_1', 0.55)
 
 # Laundry Dryer
-fix_double_pole(kW_mod, kW, 'Gar_Dryer', 'Gar_Dry1','Gar_Dry2', 1.01)
+fix_double_pole(kW_mod, kW, 'Gar_Dryer', 'Gar_Dry1','Gar_Dry2', 1.04)
 
 
 # %% Fill Missing Power Load
@@ -353,13 +353,31 @@ print('\n', "Average daily DHW HP Energy Consumption:",
 # print table
 print(kWh_daily)
 
+# %%
+
+fig, ax = plt.subplots(1, 1)
+kWh_daily.loc['2023-09-01':,
+              ['Main_MTU', 'Spy_Sum', 'BCH']
+              ].plot.bar(legend=True, ax=ax)
+ax.set_xticklabels(kWh_daily['2023-09-01':].index.strftime('%Y-%m-%d'))
+ax.axhline(color='k')
+ax.set_ylabel('Daily Energy Consumption (kWh)')
+ax.set_xlabel('Date')
+fig.tight_layout()
     
 # %% One-off dots Plot
 
 # dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
 #           legend=True)
 
-lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
+# lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
+#           legend=True)
+
+
+# lines_plot(kW.filter(like='DishW').resample('1H').mean(), 'Dishwasher', ylab='hourly energy kWh',
+#           legend=True)
+
+dots_plot(kWh[['K_Fridge','Test_MTU']], 'Fridge Mod', ylab='hourly energy kWh',
           legend=True)
 
 # # %% One-off area Plot
@@ -374,8 +392,8 @@ lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab
 
 # %% One-off dots Plot
 
-dots_plot(kW_mod[['Bed_Main','Test_MTU']], 'Bed Room Mod', ylab='power kW',
-          legend=True)
+# dots_plot(kW_mod[['Bed_Main','Test_MTU']], 'Bed Room Mod', ylab='power kW',
+#           legend=True)
 
 # # %% One-off dots Plot
 
