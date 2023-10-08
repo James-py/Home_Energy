@@ -160,12 +160,6 @@ for col in kW.columns:
     kW.loc[kW[col]<0, col] = np.nan
     kW.loc[kW[col]>1000, col] = np.nan
 
-# %% Plot Original Data Area Graph
-
-area_plot(kW, 'Original Power Data - Area', main_line=True,
-          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Power (kW)')
-
 # %% Make a copy of the kW data for data cleaning
 # Drop duplicate Oven data
 
@@ -254,6 +248,10 @@ fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
 kW_mod.loc[kW.Freezer.between(0.01,0.03), 'Freezer'] = 0.05
 
 
+# %% Use Test MTU for Freezer
+
+kW_mod.loc['2023-09-30 12:00':,'Freezer'] = kW_mod.loc['2023-09-30 12:00':,'Test_MTU']
+
 # %% Total Power Comparison Calcs
 # - uses spyder data for DHW
 # fill Main MTU data using spyder sum
@@ -261,17 +259,6 @@ kW_mod.loc[kW.Freezer.between(0.01,0.03), 'Freezer'] = 0.05
 kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
 kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']).sum(axis=1)
 kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
-
-# %% Plot Cleaned Power Data Area
-
-area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
-          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Power (kW)')
-
-# %% Plot Power Total Comparison
-
-lines_plot(kW_tot_compare, 'MTU and Spyder Total Power Comparison', 
-           drop_list=[], legend=True, ylab='Power (kW)')
 
 # %% import BC Hydro data
 
@@ -315,12 +302,6 @@ BCH_kWh = BCH_data_WIP.pivot(index='Date_Time',
 
 kWh = kW_mod.resample('1H').mean()
 
-# %% Plot Hourly Energy Area all channels
-
-area_plot(kWh, 'Hourly Energy - Area', main_line=True,
-          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Hourly Energy (kWh)')
-
 # %% Total Energy Compare and combine TED and BCH data
 
 kWh_tot_compare = pd.DataFrame(kWh[['Main_MTU', 'DHWHP_Spy']])
@@ -331,13 +312,6 @@ kWh_tot_compare['MTU_Spy_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.Spy
 # kWh_tot_compare.loc[kWh_tot_compare['MTU_Spy_Diff']<0, 'MTU_Spy_Diff'] = np.nan
 kWh_tot_compare['BCH'] = BCH_kWh[12014857]
 kWh_tot_compare['MTU_BCH_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
-
-# %% Plot Hourly Energy Total Comparison
-
-
-lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison', 
-           drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
-
 
 # %% Daily Energy Totals
 
@@ -353,7 +327,7 @@ print('\n', "Average daily DHW HP Energy Consumption:",
 # print table
 print(kWh_daily)
 
-# %%
+# %% bar plot of daily total energy
 
 fig, ax = plt.subplots(1, 1)
 kWh_daily.loc['2023-09-01':,
@@ -365,6 +339,37 @@ ax.set_ylabel('Daily Energy Consumption (kWh)')
 ax.set_xlabel('Date')
 fig.tight_layout()
     
+
+# %% Plot Hourly Energy Total Comparison
+
+lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison', 
+           drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
+
+# %% Plot Cleaned Power Data Area
+
+area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Power (kW)')
+
+# %% Plot Power Total Comparison
+
+lines_plot(kW_tot_compare, 'MTU and Spyder Total Power Comparison', 
+           drop_list=[], legend=True, ylab='Power (kW)')
+
+
+# %% Plot Original Data Area Graph
+
+area_plot(kW, 'Original Power Data - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Power (kW)')
+
+
+# %% Plot Hourly Energy Area all channels
+
+area_plot(kWh, 'Hourly Energy - Area', main_line=True,
+          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+          legend=True, ylab='Hourly Energy (kWh)')
+
 # %% One-off dots Plot
 
 # dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
@@ -377,7 +382,7 @@ fig.tight_layout()
 # lines_plot(kW.filter(like='DishW').resample('1H').mean(), 'Dishwasher', ylab='hourly energy kWh',
 #           legend=True)
 
-dots_plot(kWh[['K_Fridge','Test_MTU']], 'Fridge Mod', ylab='hourly energy kWh',
+lines_plot(kW_mod[['Freezer','Test_MTU']], 'Freezer Mod power', ylab='kW',
           legend=True)
 
 # # %% One-off area Plot
