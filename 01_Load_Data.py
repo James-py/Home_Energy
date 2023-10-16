@@ -13,14 +13,17 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-# import datetime
+import datetime
 # import seaborn as sns
 # import matplotlib as mpl
 # import matplotlib.colors as mcolors
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 
+# %% get today's date
 
+today = datetime.datetime.now().date()
+one_week_ago = today - datetime.timedelta(weeks=1)
 # %% create my custom colourmap
 
 """
@@ -77,9 +80,9 @@ otherplots = False
 # %% Plotting Functions
 
 def dots_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
-                legend=False,):
+                legend=False, start_date=one_week_ago):
     fig, ax = plt.subplots(1, 1)
-    df.plot(ax=ax, colormap=cmap,
+    df.loc[start_date:,:].plot(ax=ax, colormap=cmap,
             marker='.', alpha=0.35, linestyle='None',legend=legend,
             x_compat=True)
     if vertLine != 1000:
@@ -89,20 +92,20 @@ def dots_plot(df, caption, vertLine=1000, xlab='Date / Time', ylab='',
     ax.set_title(caption)
 
 def area_plot(df, caption, drop_list=[], main_line=False, 
-              legend=False, ylab=''):
+              legend=False, ylab='', start_date=one_week_ago):
     fig, ax = plt.subplots(1, 1)
-    df.drop(columns=drop_list).plot.area(
+    df.loc[start_date:,:].drop(columns=drop_list).plot.area(
         ax=ax, colormap=cmap, x_compat=True, legend=legend)
     if main_line:
-        df.Main_MTU.plot(color='k',linestyle='-', ax=ax)
+        df.loc[start_date:,:].Main_MTU.plot(color='k',linestyle='-', ax=ax)
         ax.legend()
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
 
-def lines_plot(df, caption, drop_list=[], legend=True, ylab=''):
+def lines_plot(df, caption, drop_list=[], legend=True, ylab='', start_date=one_week_ago):
     fig, ax = plt.subplots(1, 1)
-    df.drop(columns=drop_list).plot(alpha=0.75,
+    df.loc[start_date:,:].drop(columns=drop_list).plot(alpha=0.75,
         ax=ax, colormap=cmap, legend=legend, x_compat=True)
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
@@ -158,7 +161,7 @@ kW.index = pd.to_datetime(kW.index)
 
 for col in kW.columns:
     kW.loc[kW[col]<0, col] = np.nan
-    kW.loc[kW[col]>1000, col] = np.nan
+    kW.loc[kW[col]>12, col] = np.nan
 
 # %% Make a copy of the kW data for data cleaning
 # Drop duplicate Oven data
@@ -184,7 +187,9 @@ calibration_dict = {
     'Bed_G_Off':0.75, 
     'Bed_Main':0.60,
     'DHWHP_Spy':0.71, 
-    'K_Plg_2MW':0.75, 
+    'K_Plg_2MW':0.75,
+    'Heat_Beds':1.0,
+    'Heat_LvRm':1.0
     }
 
 for circuit, multiplier in calibration_dict.items():
@@ -248,16 +253,18 @@ fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
 kW_mod.loc[kW.Freezer.between(0.01,0.03), 'Freezer'] = 0.05
 
 
-# %% Use Test MTU for Freezer
+# %% Use Test MTU for Freezer for the week it was on that circuit
 
-kW_mod.loc['2023-09-30 12:00':,'Freezer'] = kW_mod.loc['2023-09-30 12:00':,'Test_MTU']
+kW_mod.loc['2023-09-30 12:00':'2023-10-10 09:50','Freezer'] = kW_mod.loc[
+    '2023-09-30 12:00':'2023-10-10 09:50','Test_MTU']
 
 # %% Total Power Comparison Calcs
 # - uses spyder data for DHW
 # fill Main MTU data using spyder sum
 
 kW_tot_compare = pd.DataFrame(kW_mod['Main_MTU'])
-kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']).sum(axis=1)
+kW_tot_compare['Spy_Sum'] = kW_mod.drop(columns=['DHW_MTU','Main_MTU','Test_MTU']
+                                        ).sum(axis=1)
 kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Spy_Sum)
 
 # %% import BC Hydro data
@@ -289,9 +296,8 @@ for n, f in BCH_data_files.items():
 '''
 
 BCH_data_raw = pd.concat(BCH_data_dict)
-BCH_data_WIP = BCH_data_raw.drop_duplicates(subset=['Interval Start Date/Time'])
-BCH_data_WIP.loc[:,'Date_Time'] = pd.to_datetime(BCH_data_WIP.loc[:,'Interval Start Date/Time'])
-BCH_data_WIP.loc[:,'Date_Time'] = BCH_data_WIP.loc[:,'Date_Time'].dt.floor('Min')
+BCH_data_WIP = BCH_data_raw.reset_index().drop_duplicates(subset=['Account Number','Interval Start Date/Time'])
+BCH_data_WIP['Date_Time'] = pd.to_datetime(BCH_data_WIP['Interval Start Date/Time']).dt.floor('Min')
 
 # %% create df with only BCH energy and set datetime index
 BCH_kWh = BCH_data_WIP.pivot(index='Date_Time', 
@@ -345,7 +351,7 @@ fig.tight_layout()
 lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison', 
            drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
 
-# %% Plot Cleaned Power Data Area
+# %% Plot Cleaned Power Data Area All
 
 area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
@@ -370,10 +376,8 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
           legend=True, ylab='Hourly Energy (kWh)')
 
-# %% One-off dots Plot
 
-# dots_plot(kW.filter(like='DHWHP'), 'Heat Pump', ylab='power kW',
-#           legend=True)
+# %% 
 
 # lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
 #           legend=True)
@@ -382,7 +386,10 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 # lines_plot(kW.filter(like='DishW').resample('1H').mean(), 'Dishwasher', ylab='hourly energy kWh',
 #           legend=True)
 
-lines_plot(kW_mod[['Freezer','Test_MTU']], 'Freezer Mod power', ylab='kW',
+# lines_plot(kW[['Freezer','Test_MTU']], 'Freezer original power', ylab='kW',
+#           legend=True)
+
+lines_plot(kW_mod.loc['2023-10-10 10:00':,['Heat_Beds','Test_MTU']], 'Heat_Beds kW', ylab='kW',
           legend=True)
 
 # # %% One-off area Plot
