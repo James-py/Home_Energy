@@ -24,6 +24,8 @@ from matplotlib.colors import ListedColormap
 
 today = datetime.datetime.now().date()
 one_week_ago = today - datetime.timedelta(weeks=1)
+start_date = datetime.date(2023,10,9)
+
 # %% create my custom colourmap
 
 """
@@ -97,7 +99,7 @@ def area_plot(df, caption, drop_list=[], main_line=False,
     df.loc[start_date:,:].drop(columns=drop_list).plot.area(
         ax=ax, colormap=cmap, x_compat=True, legend=legend)
     if main_line:
-        df.loc[start_date:,:].Main_MTU.plot(color='k',linestyle='-', ax=ax)
+        df.loc[start_date:,:].Main_MTU.plot(color='brown',linestyle='-', ax=ax)
         ax.legend()
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
@@ -203,6 +205,43 @@ NOTE: On Aug 25 at ~ 6PM I changed all the spyder multipliers on the ECC back to
 I also added a second spyder legg for the double-pole of the Oven and for the Dishwasher
 finished at ~6:26PM
 """
+
+# %% Fix Living Room Heating
+
+
+def fix_living_room_heating(df_mod, df, circuit, cutoff, offset, 
+                            multiplier, reduction_multiplier):
+    df_mod.loc[(df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] = df.loc[
+        (df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] - offset
+    df_mod.loc[(df_mod[circuit]<offset),circuit] = df.loc[
+        (df[circuit]<offset),circuit] * reduction_multiplier
+    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
+        df[circuit]>cutoff,circuit] * multiplier
+        
+    
+fix_living_room_heating(kW_mod, kW, 'Heat_LvRm', 0.6, 0.1, 1.12, 0.5)
+
+# kW_mod.loc[(kW.Heat_LvRm<0.5),'Heat_LvRm'] = kW.loc[
+#     (kW.Heat_LvRm<0.5),'Heat_LvRm'] * 0.5
+
+# kW_mod.loc[kW.Heat_LvRm>0.5,'Heat_LvRm'] = kW.loc[kW.Heat_LvRm>0.5,'Heat_LvRm'] * 1
+
+# area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
+#           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+#           legend=True, ylab='Power (kW)')
+
+
+# %% Fix Heating
+
+
+def fix_bed_heating(df_mod, df, circuit, cutoff, offset, multiplier):
+    df_mod.loc[(df[circuit]<cutoff) & (df[circuit]>offset),circuit] = df.loc[
+        (df[circuit]<cutoff) & (df[circuit]>offset),circuit] - offset
+    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
+        df[circuit]>cutoff,circuit] * multiplier
+        
+    
+fix_bed_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12)
 
 
 # %% Data Cleaning - double pole circuits
@@ -336,10 +375,10 @@ print(kWh_daily)
 # %% bar plot of daily total energy
 
 fig, ax = plt.subplots(1, 1)
-kWh_daily.loc['2023-09-01':,
+kWh_daily.loc[start_date:,
               ['Main_MTU', 'Spy_Sum', 'BCH']
               ].plot.bar(legend=True, ax=ax)
-ax.set_xticklabels(kWh_daily['2023-09-01':].index.strftime('%Y-%m-%d'))
+ax.set_xticklabels(kWh_daily[start_date:].index.strftime('%Y-%m-%d'))
 ax.axhline(color='k')
 ax.set_ylabel('Daily Energy Consumption (kWh)')
 ax.set_xlabel('Date')
@@ -355,7 +394,7 @@ lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison',
 
 area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Power (kW)')
+          legend=True, ylab='Power (kW)') #, start_date=start_date)
 
 # %% Plot Power Total Comparison
 
@@ -389,7 +428,7 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 # lines_plot(kW[['Freezer','Test_MTU']], 'Freezer original power', ylab='kW',
 #           legend=True)
 
-lines_plot(kW_mod.loc['2023-10-10 10:00':,['Heat_Beds','Test_MTU']], 'Heat_Beds kW', ylab='kW',
+lines_plot(kW_mod.loc['2023-10-10 10:00':,['Heat_Beds','Test_MTU']], 'Heat_Beds kW 3', ylab='kW',
           legend=True)
 
 # # %% One-off area Plot
