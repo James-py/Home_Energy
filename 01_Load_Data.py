@@ -99,7 +99,7 @@ def area_plot(df, caption, drop_list=[], main_line=False,
     df.loc[start_date:,:].drop(columns=drop_list).plot.area(
         ax=ax, colormap=cmap, x_compat=True, legend=legend)
     if main_line:
-        df.loc[start_date:,:].Main_MTU.plot(color='brown',linestyle='-', ax=ax)
+        df.loc[start_date:,:].Main_MTU.plot(color='k',linestyle='-', ax=ax)
         ax.legend()
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
@@ -209,39 +209,38 @@ finished at ~6:26PM
 # %% Fix Living Room Heating
 
 
-def fix_living_room_heating(df_mod, df, circuit, cutoff, offset, 
-                            multiplier, reduction_multiplier):
+def fix_heating(df_mod, df, circuit, cutoff, offset, 
+                            multiplier1, multiplier2):
+    # multiplier1 when signal is > cutoff
+    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
+        df[circuit]>cutoff,circuit] * multiplier + offset
+    # DC offset when signal is <= cutoff and >= offset
     df_mod.loc[(df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] = df.loc[
         (df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] - offset
+    # multiplier2 when signal is < offset
     df_mod.loc[(df_mod[circuit]<offset),circuit] = df.loc[
-        (df[circuit]<offset),circuit] * reduction_multiplier
-    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
-        df[circuit]>cutoff,circuit] * multiplier
+        (df[circuit]<offset),circuit] * multiplier2
         
     
-fix_living_room_heating(kW_mod, kW, 'Heat_LvRm', 0.6, 0.1, 1.12, 0.5)
+fix_heating(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 1.17, 0.5)
 
-# kW_mod.loc[(kW.Heat_LvRm<0.5),'Heat_LvRm'] = kW.loc[
-#     (kW.Heat_LvRm<0.5),'Heat_LvRm'] * 0.5
-
-# kW_mod.loc[kW.Heat_LvRm>0.5,'Heat_LvRm'] = kW.loc[kW.Heat_LvRm>0.5,'Heat_LvRm'] * 1
-
-# area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
-#           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-#           legend=True, ylab='Power (kW)')
+fix_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.17, 1)
 
 
-# %% Fix Heating
+# %% Fix Bed Heating
 
 
-def fix_bed_heating(df_mod, df, circuit, cutoff, offset, multiplier):
-    df_mod.loc[(df[circuit]<cutoff) & (df[circuit]>offset),circuit] = df.loc[
-        (df[circuit]<cutoff) & (df[circuit]>offset),circuit] - offset
-    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
-        df[circuit]>cutoff,circuit] * multiplier
+# def fix_bed_heating(df_mod, df, circuit, cutoff, offset, multiplier):
+#     # multiplier when signal is > cutoff
+#     df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
+#         df[circuit]>cutoff,circuit] * multiplier
+#     # DC offset when signal is < cutoff and > offset
+#     df_mod.loc[(df[circuit]<cutoff) & (df[circuit]>offset),circuit] = df.loc[
+#         (df[circuit]<cutoff) & (df[circuit]>offset),circuit] - offset
+    
         
     
-fix_bed_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12)
+# fix_bed_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12)
 
 
 # %% Data Cleaning - double pole circuits
@@ -428,7 +427,20 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 # lines_plot(kW[['Freezer','Test_MTU']], 'Freezer original power', ylab='kW',
 #           legend=True)
 
-lines_plot(kW_mod.loc['2023-10-10 10:00':,['Heat_Beds','Test_MTU']], 'Heat_Beds kW 3', ylab='kW',
+lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+           'Heat_Beds kW Oct 10 to 28', ylab='kW',
+          legend=True)
+
+lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+           'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
+          legend=True)
+
+lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+           'Heat Living Room kW Oct 28', ylab='kW',
+          legend=True)
+
+lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+           'Heat Living Room kW_mod Oct 28', ylab='kW',
           legend=True)
 
 # # %% One-off area Plot
