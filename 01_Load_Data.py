@@ -206,42 +206,65 @@ I also added a second spyder legg for the double-pole of the Oven and for the Di
 finished at ~6:26PM
 """
 
-# %% Fix Living Room Heating
+# %% Fix Heating v1
 
 
-def fix_heating(df_mod, df, circuit, cutoff, offset, 
+def fix_heating_old(df_mod, df, circuit, cutoff, offset, 
                             multiplier1, multiplier2):
     # multiplier1 when signal is > cutoff
     df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
-        df[circuit]>cutoff,circuit] * multiplier + offset
+        df[circuit]>cutoff,circuit] * multiplier1
     # DC offset when signal is <= cutoff and >= offset
     df_mod.loc[(df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] = df.loc[
         (df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] - offset
     # multiplier2 when signal is < offset
-    df_mod.loc[(df_mod[circuit]<offset),circuit] = df.loc[
+    df_mod.loc[(df[circuit]<offset),circuit] = df.loc[
         (df[circuit]<offset),circuit] * multiplier2
         
     
-fix_heating(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 1.17, 0.5)
+# fix_heating_old(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 1.12, 0.5)
 
-fix_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.17, 1)
-
-
-# %% Fix Bed Heating
+# fix_heating_old(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12, 0.5)
 
 
-# def fix_bed_heating(df_mod, df, circuit, cutoff, offset, multiplier):
-#     # multiplier when signal is > cutoff
-#     df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
-#         df[circuit]>cutoff,circuit] * multiplier
-#     # DC offset when signal is < cutoff and > offset
-#     df_mod.loc[(df[circuit]<cutoff) & (df[circuit]>offset),circuit] = df.loc[
-#         (df[circuit]<cutoff) & (df[circuit]>offset),circuit] - offset
-    
+# %% Fix  Heating v2
+
+
+def fix_heating(df_mod, df, circuit, cutoff, offset, 
+                            multiplier1):
+    # when signal is > cutoff
+    rows = df[circuit]>cutoff
+    df_mod.loc[rows,circuit] = (df.loc[rows,circuit]
+        + (df.loc[rows,circuit] - cutoff) * multiplier1)
+    # when signal is <= cutoff and >= offset
+    # with a 0.05 W deadband
+    rows = (df[circuit]<=(cutoff-0.05)) & (df[circuit]>=offset)
+    df_mod.loc[rows,circuit] = (df.loc[rows,circuit]
+        - offset)
+    # when signal is < offset
+    # df_mod.loc[(df[circuit]<offset),circuit] = df.loc[
+    #     (df[circuit]<offset),circuit] * multiplier2
         
     
-# fix_bed_heating(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12)
+fix_heating(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 0.25)
 
+fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25)
+
+# Plots for testing
+# Bed Rooms
+# lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+#            'Heat_Beds kW Oct 10 to 28', ylab='kW',
+#           legend=True)
+# lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+#            'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
+#           legend=True)
+# # Living Room
+# lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+#            'Heat Living Room kW Oct 28', ylab='kW',
+#           legend=True)
+# lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+#            'Heat Living Room kW_mod Oct 28', ylab='kW',
+#           legend=True)
 
 # %% Data Cleaning - double pole circuits
 '''
@@ -369,7 +392,7 @@ print('\n', "Average daily DHW HP Energy Consumption:",
       round(kWh_daily.DHWHP_Spy['2023-09-01':].mean(),2), "kWh",'\n')
 
 # print table
-print(kWh_daily)
+print(kWh_daily.iloc[-10:,:])
 
 # %% bar plot of daily total energy
 
@@ -415,7 +438,27 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
           legend=True, ylab='Hourly Energy (kWh)')
 
 
-# %% 
+# %% Bed Rooms
+
+lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+           'Heat_Beds kW Oct 10 to 28', ylab='kW',
+          legend=True)
+
+lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+           'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
+          legend=True)
+
+# %% Living Room
+
+lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+           'Heat Living Room kW Oct 28', ylab='kW',
+          legend=True)
+
+lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+           'Heat Living Room kW_mod Oct 28', ylab='kW',
+          legend=True)
+
+# %% One-off lines Plot
 
 # lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
 #           legend=True)
@@ -427,48 +470,25 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 # lines_plot(kW[['Freezer','Test_MTU']], 'Freezer original power', ylab='kW',
 #           legend=True)
 
-lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-           'Heat_Beds kW Oct 10 to 28', ylab='kW',
-          legend=True)
+# lines_plot(kW, 'original spyder data - lines', 
+#            drop_list=['Main_MTU', 'DHW_MTU','Test_MTU'], 
+#            legend=True, ylab='Power (kW)')
 
-lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-           'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
-          legend=True)
-
-lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-           'Heat Living Room kW Oct 28', ylab='kW',
-          legend=True)
-
-lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-           'Heat Living Room kW_mod Oct 28', ylab='kW',
-          legend=True)
-
-# # %% One-off area Plot
+# %% One-off area Plot
 
 # area_plot(kW_mod.filter(like='Oven'), 'Oven', ylab='power kW',
 #           legend=True)
 
-# # %% One-off dots Plot
+# %% One-off dots Plot
 
 # dots_plot(kW_mod[['Living_Rm','Test_MTU']], 'Living Room Mod', ylab='power kW',
 #           legend=True)
 
-# %% One-off dots Plot
-
 # dots_plot(kW_mod[['Bed_Main','Test_MTU']], 'Bed Room Mod', ylab='power kW',
 #           legend=True)
 
-# # %% One-off dots Plot
-
 # dots_plot(kW_mod[['K_DishW','Test_MTU']], 'Dishwasher', ylab='power kW',
 #           legend=True)
-
-
-# # %% Plot Original Data Line Graph Spyders only
-
-# lines_plot(kW, 'original spyder data - lines', 
-#            drop_list=['Main_MTU', 'DHW_MTU','Test_MTU'], 
-#            legend=True, ylab='Power (kW)')
 
 # dots_plot(kW_mod[['Freezer','Test_MTU']], 'Freezer Mod', ylab='power kW',
 #           legend=True)
