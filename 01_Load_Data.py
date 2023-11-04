@@ -63,6 +63,16 @@ cmap = ListedColormap(["darkorange",
                        'deeppink'
                        ])
 
+cmap2 = ListedColormap([
+                       'limegreen',
+                       'violet',
+                       'darkblue',
+                       'chocolate',
+                       'silver',
+                       'orange',
+                       'deeppink'
+                       ])
+
 
 # %% close all figures
 
@@ -108,7 +118,7 @@ def area_plot(df, caption, drop_list=[], main_line=False,
 def lines_plot(df, caption, drop_list=[], legend=True, ylab='', start_date=one_week_ago):
     fig, ax = plt.subplots(1, 1)
     df.loc[start_date:,:].drop(columns=drop_list).plot(alpha=0.75,
-        ax=ax, colormap=cmap, legend=legend, x_compat=True)
+        ax=ax, colormap=cmap2, legend=legend, x_compat=True)
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
@@ -242,11 +252,10 @@ def fix_heating(df_mod, df, circuit, cutoff, offset,
     df_mod.loc[rows,circuit] = (df.loc[rows,circuit]
         - offset)
     # when signal is < offset
-    # df_mod.loc[(df[circuit]<offset),circuit] = df.loc[
-    #     (df[circuit]<offset),circuit] * multiplier2
+    df_mod.loc[(df[circuit]<offset),circuit] = 0
         
     
-fix_heating(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 0.25)
+fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.1, 0.25)
 
 fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25)
 
@@ -256,14 +265,14 @@ fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25)
 #            'Heat_Beds kW Oct 10 to 28', ylab='kW',
 #           legend=True)
 # lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-#            'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
+#             'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
 #           legend=True)
 # # Living Room
 # lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-#            'Heat Living Room kW Oct 28', ylab='kW',
+#             'Heat Living Room kW Oct 28', ylab='kW',
 #           legend=True)
 # lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-#            'Heat Living Room kW_mod Oct 28', ylab='kW',
+#             'Heat Living Room kW_mod Oct 28', ylab='kW',
 #           legend=True)
 
 # %% Data Cleaning - double pole circuits
