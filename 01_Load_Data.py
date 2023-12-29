@@ -5,7 +5,7 @@ Created on Thu Aug 24 05:36:44 2023
 
 @author: james
 """
-
+# use magic command %matplotlib
 
 # %% Import Libraries
 
