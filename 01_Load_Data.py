@@ -1,12 +1,14 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Aug 24 05:36:44 2023
+@author: james
+
 magic command for plots:
 %matplotlib
-@author: james
+
+terminal command to get data from Raspberry Pi
+rsync -a james@rpi.local:/home/james/Data/ ~/repo/Home_Energy/Data_Raw
+
 """
-# use magic command %matplotlib
 
 # %% Import Libraries
 
