@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Aug 24 05:36:44 2023
-
+magic command for plots:
+%matplotlib
 @author: james
 """
 # use magic command %matplotlib
@@ -24,7 +25,8 @@ from matplotlib.colors import ListedColormap
 
 today = datetime.datetime.now().date()
 one_week_ago = today - datetime.timedelta(weeks=1)
-start_date = datetime.date(2023,10,9)
+four_weeks_ago = today - datetime.timedelta(weeks=4)
+start_date = four_weeks_ago  # datetime.date(2023,10,9)
 
 # %% create my custom colourmap
 
@@ -167,7 +169,7 @@ data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
 # %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
 kW.index = pd.to_datetime(kW.index)
-
+kW.sort_index(inplace=True)
 
 # %% Data Cleaning - filter noise
 
@@ -401,7 +403,7 @@ print('\n', "Average daily DHW HP Energy Consumption:",
       round(kWh_daily.DHWHP_Spy['2023-09-01':].mean(),2), "kWh",'\n')
 
 # print table
-print(kWh_daily.iloc[-10:,:])
+display(kWh_daily.iloc[-10:,:].map('{:,.2f}'.format))
 
 # %% bar plot of daily total energy
 
@@ -418,7 +420,7 @@ fig.tight_layout()
 
 # %% Plot Hourly Energy Total Comparison
 
-lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison', 
+lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison',
            drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
 
 # %% Plot Cleaned Power Data Area All
@@ -428,16 +430,16 @@ area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
           legend=True, ylab='Power (kW)') #, start_date=start_date)
 
 # %% Plot Power Total Comparison
-
-lines_plot(kW_tot_compare, 'MTU and Spyder Total Power Comparison', 
-           drop_list=[], legend=True, ylab='Power (kW)')
+if False:
+    lines_plot(kW_tot_compare, 'MTU and Spyder Total Power Comparison', 
+            drop_list=[], legend=True, ylab='Power (kW)')
 
 
 # %% Plot Original Data Area Graph
-
-area_plot(kW, 'Original Power Data - Area', main_line=True,
-          drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Power (kW)')
+if False:
+    area_plot(kW, 'Original Power Data - Area', main_line=True,
+            drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
+            legend=True, ylab='Power (kW)')
 
 
 # %% Plot Hourly Energy Area all channels
@@ -449,23 +451,27 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 
 # %% Bed Rooms
 
-lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-           'Heat_Beds kW Oct 10 to 28', ylab='kW',
-          legend=True)
+lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',
+                  ['Heat_Beds','Test_MTU']], 
+                  'Heat_Beds kW Oct 10 to 28', 
+                  start_date='2023-10-10', ylab='kW',
+                  legend=True)
 
-lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-           'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
-          legend=True)
+lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',
+                      ['Heat_Beds','Test_MTU']], 
+                      'Heat_Beds kW_mod Oct 10 to 28', 
+                      start_date='2023-10-10', ylab='kW',
+                      legend=True)
 
 # %% Living Room
 
 lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
            'Heat Living Room kW Oct 28', ylab='kW',
-          legend=True)
+           start_date='2023-10-28', legend=True)
 
 lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
            'Heat Living Room kW_mod Oct 28', ylab='kW',
-          legend=True)
+           start_date='2023-10-28', legend=True)
 
 # %% One-off lines Plot
 
