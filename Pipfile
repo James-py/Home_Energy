@@ -11,6 +11,7 @@ pathlib = "*"
 datetime = "*"
 plotly = "*"
 seaborn = "*"
+Pillow = ">=10.2.0"
 
 [dev-packages]
 black = "*"
