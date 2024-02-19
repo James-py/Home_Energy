@@ -281,7 +281,7 @@ This section fixes that
 def fix_double_pole(df_mod, df, circuit, c1, c2, multiplier):
     df_mod.loc[df[c1]>0,circuit] = df.loc[
         df[c1]>0,[c1,c2]].sum(axis=1) * multiplier
-    df_mod[circuit].fillna(0, inplace=True)
+    df_mod[circuit] = df_mod[circuit].fillna(0)
 
 # K_Oven
 fix_double_pole(kW_mod, kW, 'K_Oven', 'K_Oven1','K_Oven2', 1.04)
@@ -367,7 +367,7 @@ BCH_kWh = BCH_data_WIP.pivot(index='Date_Time',
 
 #%% calculate hourly energy 
 
-kWh = kW_mod.resample('1H').mean()
+kWh = kW_mod.resample('1h').mean()
 
 # %% Total Energy Compare and combine TED and BCH data
 

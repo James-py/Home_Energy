@@ -12,6 +12,7 @@ datetime = "*"
 plotly = "*"
 seaborn = "*"
 Pillow = ">=10.2.0"
+pyarrow = "*"
 
 [dev-packages]
 black = "*"
