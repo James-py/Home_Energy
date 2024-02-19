@@ -20,9 +20,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
-# import seaborn as sns
-# import matplotlib as mpl
-# import matplotlib.colors as mcolors
+import seaborn as sns
+import matplotlib as mpl
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 
@@ -153,33 +152,49 @@ Weather_Path = CWD.joinpath('Data_Weather')
 print('\nWeather data Folder')
 print(Weather_Path)
 
+
 # %% get file paths to all the csvs
+def get_filepaths(f_path, f_pattern):
+    file_dict = {}
+    for f in f_path.glob(f_pattern):
+        file_dict[f.stem] = f
+    return file_dict
 
-data_files = {}
+TED_files = get_filepaths(RAWDataPath, '*.csv')
+Weather_files = get_filepaths(Weather_Path, '*.csv')
 
-for f in RAWDataPath.glob('*.csv'):
-    data_files[f.stem] = f
+# %%
+# read Data
+
+def read_data(fp_dict, use_TED_cols=False):
+    col_names = [
+        'Circuit',
+        'Date_Time',
+        'kW',
+        'cost',
+        'Voltage',
+        'PF',
+        ]
+    data_dict = {}
+    for n, f in fp_dict.items():
+        if use_TED_cols:
+            data_dict[n] = pd.read_csv(f, names=col_names)
+        else:
+            data_dict[n] = pd.read_csv(f)
+    return pd.concat(data_dict)
+
+
+weather_data_df = read_data(Weather_files)
+TED_data_df = read_data(TED_files, use_TED_cols=True)  
+
+# %%
+
+weather_df = weather_data_df.set_index('Date/Time (LST)')
+weather_df.index = pd.to_datetime(weather_df.index)
+weather_df.sort_index(inplace=True)
+# %%  drop duplicates
     
-# %% Read csvs and store as DataFrames in a dictionary
-
-col_names = [
-    'Circuit',
-    'Date_Time',
-    'kW',
-    'cost',
-    'Voltage',
-    'PF',
-    ]
-data_dict = {}
-
-for n, f in data_files.items():
-    data_dict[n] = pd.read_csv(f, names=col_names)
-
-
-# %% Combine data into one dataframe and drop duplicates
-    
-data_raw = pd.concat(data_dict)
-data_WIP = data_raw.drop_duplicates(subset=['Circuit', 'Date_Time'])
+data_WIP = TED_data_df.drop_duplicates(subset=['Circuit', 'Date_Time'])
 
 # %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
@@ -404,17 +419,33 @@ print('\n', "Average daily DHW HP Energy Consumption:",
 # print table
 display(kWh_daily.iloc[-10:,:].map('{:,.2f}'.format))
 
-# %% bar plot of daily total energy
 
-fig, ax = plt.subplots(1, 1)
-kWh_daily.loc[start_date:,
+# %%
+# calculate daily average temperature
+weather_daily_df = weather_df['Temp (°C)'].resample('1d').mean()
+plot_days_df = kWh_daily.join(weather_daily_df)
+
+
+
+# %%
+
+fig, ax = plt.subplots(layout='constrained')
+
+plot_days_df.loc[start_date:,
               ['Main_MTU', 'Spy_Sum', 'BCH']
               ].plot.bar(legend=True, ax=ax)
-ax.set_xticklabels(kWh_daily[start_date:].index.strftime('%Y-%m-%d'))
+
 ax.axhline(color='k')
 ax.set_ylabel('Daily Energy Consumption (kWh)')
 ax.set_xlabel('Date')
-fig.tight_layout()
+ax.set_xticklabels(ax.get_xticks(), rotation = 90)
+ax.set_xticklabels(plot_days_df[start_date:].index.strftime('%Y-%m-%d'))
+
+# for some reason I can't get the line graph to overlay on top of the bar plot
+# plt.xticks(rotation = 90)
+# plot_days_df.loc[start_date:,'Temp (°C)'
+#               ].plot(legend=True, ax=ax)
+
     
 
 # %% Plot Hourly Energy Total Comparison
