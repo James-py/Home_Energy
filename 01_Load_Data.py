@@ -8,6 +8,9 @@ magic command for plots:
 terminal command to get data from Raspberry Pi
 rsync -a james@rpi.local:/home/james/Data/ ~/repo/Home_Energy/Data_Raw
 
+Use wget in Terminal to get Environment Canada Weather Data
+for year in `seq 2023 2024`;do for month in `seq 1 12`;do wget --content-disposition "https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=52941&Year=${year}&Month=${month}&Day=14&timeframe=1&submit= Download+Data" ;done;done
+
 """
 
 # %% Import Libraries
@@ -220,32 +223,11 @@ I also added a second spyder legg for the double-pole of the Oven and for the Di
 finished at ~6:26PM
 """
 
-# %% Fix Heating v1
-
-
-def fix_heating_old(df_mod, df, circuit, cutoff, offset, 
-                            multiplier1, multiplier2):
-    # multiplier1 when signal is > cutoff
-    df_mod.loc[df[circuit]>cutoff,circuit] = df.loc[
-        df[circuit]>cutoff,circuit] * multiplier1
-    # DC offset when signal is <= cutoff and >= offset
-    df_mod.loc[(df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] = df.loc[
-        (df[circuit]<=cutoff) & (df[circuit]>=offset),circuit] - offset
-    # multiplier2 when signal is < offset
-    df_mod.loc[(df[circuit]<offset),circuit] = df.loc[
-        (df[circuit]<offset),circuit] * multiplier2
-        
-    
-# fix_heating_old(kW_mod, kW, 'Heat_LvRm', 0.7, 0.1, 1.12, 0.5)
-
-# fix_heating_old(kW_mod, kW, 'Heat_Beds', 0.5, 0.1, 1.12, 0.5)
-
-
-# %% Fix  Heating v2
+# %% Fix  Heating
 
 
 def fix_heating(df_mod, df, circuit, cutoff, offset, 
-                            multiplier1):
+                            multiplier1, spike):
     # when signal is > cutoff
     rows = df[circuit]>cutoff
     df_mod.loc[rows,circuit] = (df.loc[rows,circuit]
@@ -257,27 +239,32 @@ def fix_heating(df_mod, df, circuit, cutoff, offset,
         - offset)
     # when signal is < offset
     df_mod.loc[(df[circuit]<offset),circuit] = 0
+    # when signal is > spike
+    rows = df[circuit]>spike
+    df_mod.loc[rows,circuit] = spike-0.5
         
     
-fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.1, 0.25)
+fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.1, 0.25, 3.0)
 
-fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25)
+fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25, 3.0)
+
+# %% Heat Fix testing
 
 # Plots for testing
 # Bed Rooms
 # lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
 #            'Heat_Beds kW Oct 10 to 28', ylab='kW',
 #           legend=True)
-# lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+# lines_plot(kW_mod.loc[:'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
 #             'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
-#           legend=True)
+#             start_date='2023-10-10', legend=True)
 # # Living Room
 # lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
 #             'Heat Living Room kW Oct 28', ylab='kW',
 #           legend=True)
-# lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+# lines_plot(kW_mod.loc[:,['Heat_LvRm','Test_MTU']], 
 #             'Heat Living Room kW_mod Oct 28', ylab='kW',
-#           legend=True)
+#             start_date='2023-10-28', legend=True)
 
 # %% Data Cleaning - double pole circuits
 '''
@@ -345,7 +332,7 @@ kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Sp
 
 BCH_data_files = {}
 
-for f in RAWDataPath.joinpath('BC_Hydro').glob('*.csv'):
+for f in CWD.joinpath('Data_BC_Hydro').glob('*.csv'):
     BCH_data_files[f.stem] = f
 
 

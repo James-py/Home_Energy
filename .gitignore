@@ -1,7 +1,6 @@
 # James' Folders
-Data/
-Docs/
-Data_Raw/
+Archive/
+Data_*/
 
 # Mac hidden files
 .DS_Store
