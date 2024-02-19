@@ -143,6 +143,16 @@ RAWDataPath = CWD.joinpath('Data_Raw')
 print('\nSource Data (Raw) Folder')
 print(RAWDataPath)
 
+# BC Hydro data folder path object
+BCH_Path = CWD.joinpath('Data_BC_Hydro')
+print('\nBC Hydro Data Folder')
+print(BCH_Path)
+
+# Weather data folder path object
+Weather_Path = CWD.joinpath('Data_Weather')
+print('\nWeather data Folder')
+print(Weather_Path)
+
 # %% get file paths to all the csvs
 
 data_files = {}
@@ -332,7 +342,7 @@ kW_tot_compare['Main_MTU'] = kW_tot_compare['Main_MTU'].fillna(kW_tot_compare.Sp
 
 BCH_data_files = {}
 
-for f in CWD.joinpath('Data_BC_Hydro').glob('*.csv'):
+for f in BCH_Path.glob('*.csv'):
     BCH_data_files[f.stem] = f
 
 
