@@ -13,6 +13,7 @@ plotly = "*"
 seaborn = "*"
 Pillow = ">=10.2.0"
 pyarrow = "*"
+mpl-axes-aligner = "*"
 
 [dev-packages]
 black = "*"

@@ -24,6 +24,7 @@ import seaborn as sns
 import matplotlib as mpl
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
+from mpl_axes_aligner import align
 
 # %% get today's date
 
@@ -121,14 +122,31 @@ def area_plot(df, caption, drop_list=[], main_line=False,
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
 
-def lines_plot(df, caption, drop_list=[], legend=True, ylab='', start_date=one_week_ago):
-    fig, ax = plt.subplots(1, 1)
+def lines_plot(df, df2, caption, drop_list=[], legend=True, ylab='', 
+               start_date=one_week_ago, 
+               vs_temp=False, col2 ='Temp (°C)'):
+    fig, ax = plt.subplots(1, 1, constrained_layout=True)
     df.loc[start_date:,:].drop(columns=drop_list).plot(alpha=0.75,
         ax=ax, colormap=cmap2, legend=legend, x_compat=True)
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
     ax.axhline(color='k')
+    # y1_max = ax.get_ybound()[1]
+    # nticks = 11
+    if vs_temp:
+        ax2 = ax.twinx()
+        colour2='tab:blue'
+        ax2.plot(df2.loc[start_date:,col2], color=colour2, linestyle='--')
+        ax2.set_ylabel('Temperature (°C)', color=colour2)
+        ax2.tick_params(axis='y', labelcolor=colour2)
+        align.yaxes(ax, 0, ax2, 0, 0.2)        
+        
+# plt.close('all')
+# lines_plot(kWh_tot_compare,weather_df, 'MTU and BCH Total Energy Comparison',
+#            drop_list=['DHWHP_Spy', 'Spy_Sum','MTU_Spy_Diff'], legend=True, ylab='Hourly Energy (kWh)', 
+#            start_date=start_date, vs_temp=True)
+
 
 # %% set up folder paths
 
@@ -221,16 +239,16 @@ kW_mod.drop(columns=['Gar_Dry1','Gar_Dry2'], inplace=True)
 calibration_dict = {
     'K_Plg_4Ts':1.04,
     'K_DishW':0.55,
-    'Gar_Dryer':1.04,
-    'K_Oven':1.04,
-    'Out_Plugs':0.75,
-    'Garage':0.85,
+    'Gar_Dryer':1,
+    'K_Oven':1.1,
+    'Out_Plugs':0.7,
+    'Garage':0.8,
     'Freezer':0.85,
     'K_Fridge':0.85,
     'Living_Rm':0.65, 
     'Bed_G_Off':0.75, 
     'Bed_Main':0.60,
-    'DHWHP_Spy':0.71, 
+    'DHWHP_Spy':0.68, 
     'K_Plg_2MW':0.75,
     'Heat_Beds':1.0,
     'Heat_LvRm':1.0
@@ -325,7 +343,6 @@ fix_double_pole(kW_mod, kW, 'Gar_Dryer', 'Gar_Dry1','Gar_Dry2', 1.04)
 # spyder CTs are less accurate and don't reliably detect loads <100 W
 # this fills in a minimum load when ct dectects less than the minimum
 
-
 def fill_one_circuit(df_mod, df, circuit, load):
     df_mod.loc[df[circuit]<load,circuit] = load
     
@@ -334,15 +351,9 @@ fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.035)
 # various standby and chargers in bedrooms are still a small load
 fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.01)
 # raspberry pi and doc
-fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.02)
+fill_one_circuit(kW_mod, kW, 'Bed_G_Off', 0.01)
 # When freezer is on, the spyder seems to underestimate the load sometimes
 kW_mod.loc[kW.Freezer.between(0.01,0.03), 'Freezer'] = 0.05
-
-
-# %% Use Test MTU for Freezer for the week it was on that circuit
-
-kW_mod.loc['2023-09-30 12:00':'2023-10-10 09:50','Freezer'] = kW_mod.loc[
-    '2023-09-30 12:00':'2023-10-10 09:50','Test_MTU']
 
 # %% Total Power Comparison Calcs
 # - uses spyder data for DHW
@@ -374,7 +385,8 @@ BCH_data_dict = {}
 for n, f in BCH_data_files.items():
     BCH_data_dict[n] = pd.read_csv(f)
     
-# %% Combine BCH data into one dataframe and drop duplicates
+# %% 
+# Combine BCH data into one dataframe and drop duplicates
 
 '''
 ['Account Number', 'Interval Start Date/Time', 'Net Consumption (kWh)',
@@ -385,7 +397,8 @@ BCH_data_raw = pd.concat(BCH_data_dict)
 BCH_data_WIP = BCH_data_raw.reset_index().drop_duplicates(subset=['Account Number','Interval Start Date/Time'])
 BCH_data_WIP['Date_Time'] = pd.to_datetime(BCH_data_WIP['Interval Start Date/Time']).dt.floor('Min')
 
-# %% create df with only BCH energy and set datetime index
+# %% 
+# create df with only BCH energy and set datetime index
 BCH_kWh = BCH_data_WIP.pivot(index='Date_Time', 
                              columns='Account Number', 
                              values='Net Consumption (kWh)')
@@ -408,15 +421,12 @@ kWh_tot_compare['MTU_BCH_Diff'] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
 # %% Daily Energy Totals
 
 kWh_daily = kWh_tot_compare.resample('1d').sum()
-
 kWh_daily['MTU_Spy_Diff_pct'] = kWh_daily.MTU_Spy_Diff / kWh_daily.Spy_Sum *100
 kWh_daily['MTU_BCH_Diff_pct'] = kWh_daily.MTU_BCH_Diff / kWh_daily.BCH *100
-
-
 print('\n', "Average daily DHW HP Energy Consumption:", 
       round(kWh_daily.DHWHP_Spy['2023-09-01':].mean(),2), "kWh",'\n')
 
-# print table
+# %% print table
 display(kWh_daily.iloc[-10:,:].map('{:,.2f}'.format))
 
 
@@ -425,14 +435,21 @@ display(kWh_daily.iloc[-10:,:].map('{:,.2f}'.format))
 weather_daily_df = weather_df['Temp (°C)'].resample('1d').mean()
 plot_days_df = kWh_daily.join(weather_daily_df)
 
+lines_plot(kWh_daily, plot_days_df, 'MTU and Spyder Total Daily Energy Comparison',
+           drop_list=['DHWHP_Spy', 'BCH', 'MTU_BCH_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], legend=True, ylab='Hourly Energy (kWh)', 
+           start_date=start_date, vs_temp=True)
 
 
+lines_plot(kWh_daily, plot_days_df, 'MTU and BCH Total Daily Energy Comparison',
+           drop_list=['DHWHP_Spy', 'Spy_Sum', 'MTU_Spy_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], legend=True, ylab='Hourly Energy (kWh)', 
+           start_date=start_date, vs_temp=True)
 # %%
+# Daily Total Bar Graph
 
 fig, ax = plt.subplots(layout='constrained')
 
 plot_days_df.loc[start_date:,
-              ['Main_MTU', 'Spy_Sum', 'BCH']
+              ['BCH', 'Main_MTU', 'Spy_Sum']
               ].plot.bar(legend=True, ax=ax)
 
 ax.axhline(color='k')
@@ -450,14 +467,23 @@ ax.set_xticklabels(plot_days_df[start_date:].index.strftime('%Y-%m-%d'))
 
 # %% Plot Hourly Energy Total Comparison
 
-lines_plot(kWh_tot_compare, 'MTU and Spyder Total Energy Comparison',
-           drop_list=['DHWHP_Spy'], legend=True, ylab='Hourly Energy (kWh)')
+# kWh_tot_compare_C = kWh_tot_compare.join(weather_df['Temp (°C)'])
+
+lines_plot(kWh_tot_compare, weather_df, 'MTU and Spyder Total Energy Comparison',
+           drop_list=['DHWHP_Spy', 'BCH', 'MTU_BCH_Diff'], legend=True, ylab='Hourly Energy (kWh)', 
+           start_date=start_date, vs_temp=True)
+
+lines_plot(kWh_tot_compare,weather_df, 'MTU and BCH Total Energy Comparison',
+           drop_list=['DHWHP_Spy', 'Spy_Sum','MTU_Spy_Diff'], legend=True, ylab='Hourly Energy (kWh)', 
+           start_date=start_date, vs_temp=True)
+
+
 
 # %% Plot Cleaned Power Data Area All
 
 area_plot(kW_mod, 'Power Data Mod - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Power (kW)') #, start_date=start_date)
+          legend=True, ylab='Power (kW)', start_date=start_date)
 
 # %% Plot Power Total Comparison
 if False:
@@ -476,32 +502,55 @@ if False:
 
 area_plot(kWh, 'Hourly Energy - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
-          legend=True, ylab='Hourly Energy (kWh)')
+          legend=True, ylab='Hourly Energy (kWh)', start_date=start_date)
 
 
 # %% Bed Rooms
 
-lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',
-                  ['Heat_Beds','Test_MTU']], 
-                  'Heat_Beds kW Oct 10 to 28', 
-                  start_date='2023-10-10', ylab='kW',
-                  legend=True)
+# lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',
+#                   ['Heat_Beds','Test_MTU']], 
+#                   'Heat_Beds kW Oct 10 to 28', 
+#                   start_date='2023-10-10', ylab='kW',
+#                   legend=True)
 
-lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',
-                      ['Heat_Beds','Test_MTU']], 
-                      'Heat_Beds kW_mod Oct 10 to 28', 
-                      start_date='2023-10-10', ylab='kW',
-                      legend=True)
+# lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',
+#                       ['Heat_Beds','Test_MTU']], 
+#                       'Heat_Beds kW_mod Oct 10 to 28', 
+#                       start_date='2023-10-10', ylab='kW',
+#                       legend=True)
 
 # %% Living Room
 
-lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-           'Heat Living Room kW Oct 28', ylab='kW',
+# lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+#            'Heat Living Room kW Oct 28', ylab='kW',
+#            start_date='2023-10-28', legend=True)
+
+# lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
+#            'Heat Living Room kW_mod Oct 28', ylab='kW',
+#            start_date='2023-10-28', legend=True)
+
+# %% DHW Spyder vs Test MTU kW
+
+# corrected the DHW MTU polarity at 2024-03-12 8:04 
+
+# lines_plot(kW.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
+#            'DHW kW Mar 12', ylab='kW',
+#            start_date='2023-10-28', legend=True)
+
+lines_plot(kW_mod.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
+           'DHW kW_mod Mar 12', ylab='kW',
            start_date='2023-10-28', legend=True)
 
-lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-           'Heat Living Room kW_mod Oct 28', ylab='kW',
+# %% DHW Spyder vs Test MTU kWh
+
+lines_plot(kWh.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
+           'DHW kW_mod Mar 12', ylab='kW',
            start_date='2023-10-28', legend=True)
+
+# %% Use Test MTU for Freezer for the week it was on that circuit
+
+# kW_mod.loc['2023-09-30 12:00':'2023-10-10 09:50','Freezer'] = kW_mod.loc[
+#     '2023-09-30 12:00':'2023-10-10 09:50','Test_MTU']
 
 # %% One-off lines Plot
 
