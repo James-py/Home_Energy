@@ -212,7 +212,7 @@ weather_df.index = pd.to_datetime(weather_df.index)
 weather_df.sort_index(inplace=True)
 # %%  drop duplicates
     
-data_WIP = TED_data_df.drop_duplicates(subset=['Circuit', 'Date_Time'])
+data_WIP = TED_data_df.drop_duplicates(subset=['Circuit', 'Date_Time'], keep='last')
 
 # %% Pivot and set datetime index
 kW = data_WIP.pivot(index='Date_Time', columns='Circuit', values='kW')
@@ -245,10 +245,10 @@ calibration_dict = {
     'Garage':0.8,
     'Freezer':0.85,
     'K_Fridge':0.85,
-    'Living_Rm':0.65, 
-    'Bed_G_Off':0.75, 
+    'Living_Rm':0.6, 
+    'Bed_G_Off':0.6, 
     'Bed_Main':0.60,
-    'DHWHP_Spy':0.68, 
+    'DHWHP_Spy':0.7, 
     'K_Plg_2MW':0.75,
     'Heat_Beds':1.0,
     'Heat_LvRm':1.0
@@ -345,9 +345,12 @@ fix_double_pole(kW_mod, kW, 'Gar_Dryer', 'Gar_Dry1','Gar_Dry2', 1.04)
 
 def fill_one_circuit(df_mod, df, circuit, load):
     df_mod.loc[df[circuit]<load,circuit] = load
-    
+
+
+# DHW_HP: 10 W appears to be a standby load   
+fill_one_circuit(kW_mod, kW, 'DHWHP_Spy', 0.01)    
 # Living Room: 30 W appears to be the router that is always on    
-fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.035)
+fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.01)
 # various standby and chargers in bedrooms are still a small load
 fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.01)
 # raspberry pi and doc
@@ -394,7 +397,7 @@ for n, f in BCH_data_files.items():
 '''
 
 BCH_data_raw = pd.concat(BCH_data_dict)
-BCH_data_WIP = BCH_data_raw.reset_index().drop_duplicates(subset=['Account Number','Interval Start Date/Time'])
+BCH_data_WIP = BCH_data_raw.reset_index().drop_duplicates(subset=['Account Number','Interval Start Date/Time'],  keep='last')
 BCH_data_WIP['Date_Time'] = pd.to_datetime(BCH_data_WIP['Interval Start Date/Time']).dt.floor('Min')
 
 # %% 
@@ -436,12 +439,14 @@ weather_daily_df = weather_df['Temp (°C)'].resample('1d').mean()
 plot_days_df = kWh_daily.join(weather_daily_df)
 
 lines_plot(kWh_daily, plot_days_df, 'MTU and Spyder Total Daily Energy Comparison',
-           drop_list=['DHWHP_Spy', 'BCH', 'MTU_BCH_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], legend=True, ylab='Hourly Energy (kWh)', 
+           drop_list=['DHWHP_Spy', 'BCH', 'MTU_BCH_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], 
+           legend=True, ylab='Daily Energy (kWh)', 
            start_date=start_date, vs_temp=True)
 
 
 lines_plot(kWh_daily, plot_days_df, 'MTU and BCH Total Daily Energy Comparison',
-           drop_list=['DHWHP_Spy', 'Spy_Sum', 'MTU_Spy_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], legend=True, ylab='Hourly Energy (kWh)', 
+           drop_list=['DHWHP_Spy', 'Spy_Sum', 'MTU_Spy_Diff','MTU_Spy_Diff_pct','MTU_BCH_Diff_pct'], 
+           legend=True, ylab='Daily Energy (kWh)', 
            start_date=start_date, vs_temp=True)
 # %%
 # Daily Total Bar Graph
@@ -469,11 +474,13 @@ ax.set_xticklabels(plot_days_df[start_date:].index.strftime('%Y-%m-%d'))
 
 # kWh_tot_compare_C = kWh_tot_compare.join(weather_df['Temp (°C)'])
 
-lines_plot(kWh_tot_compare, weather_df, 'MTU and Spyder Total Energy Comparison',
+lines_plot(kWh_tot_compare, weather_df.loc[:,['Temp (°C)','Rel Hum (%)']].resample('1d').mean(),
+           'MTU and Spyder Total Energy Comparison',
            drop_list=['DHWHP_Spy', 'BCH', 'MTU_BCH_Diff'], legend=True, ylab='Hourly Energy (kWh)', 
            start_date=start_date, vs_temp=True)
 
-lines_plot(kWh_tot_compare,weather_df, 'MTU and BCH Total Energy Comparison',
+lines_plot(kWh_tot_compare,weather_df.loc[:,['Temp (°C)','Rel Hum (%)']].resample('1d').mean(),
+           'MTU and BCH Total Energy Comparison',
            drop_list=['DHWHP_Spy', 'Spy_Sum','MTU_Spy_Diff'], legend=True, ylab='Hourly Energy (kWh)', 
            start_date=start_date, vs_temp=True)
 
@@ -533,19 +540,16 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 
 # corrected the DHW MTU polarity at 2024-03-12 8:04 
 
-# lines_plot(kW.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
-#            'DHW kW Mar 12', ylab='kW',
-#            start_date='2023-10-28', legend=True)
-
-lines_plot(kW_mod.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
-           'DHW kW_mod Mar 12', ylab='kW',
-           start_date='2023-10-28', legend=True)
+lines_plot(kW_mod.loc[:,['DHWHP_Spy','Test_MTU']], weather_df, 
+           'DHW spy vs test MTU - Power', ylab='kW',
+           start_date='2024-03-12', legend=True, vs_temp=True)
 
 # %% DHW Spyder vs Test MTU kWh
 
-lines_plot(kWh.loc['2024-03-12 8:15 ':,['DHWHP_Spy','Test_MTU']], 
-           'DHW kW_mod Mar 12', ylab='kW',
-           start_date='2023-10-28', legend=True)
+lines_plot(kWh.loc[:,['DHWHP_Spy','Test_MTU']].resample('1d').sum(), 
+           weather_df.loc[:,['Temp (°C)','Rel Hum (%)']].resample('1d').mean(), 
+           'DHW spy vs test MTU - daily energy', ylab='kWh',
+           start_date='2024-03-12', legend=True, vs_temp=True)
 
 # %% Use Test MTU for Freezer for the week it was on that circuit
 
