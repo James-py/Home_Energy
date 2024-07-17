@@ -388,17 +388,27 @@ BCH_data_dict = {}
 for n, f in BCH_data_files.items():
     BCH_data_dict[n] = pd.read_csv(f)
     
+
+# %%
+
+for n, df in BCH_data_dict.items():
+    print(n)
+    df['Date_Time'] = pd.to_datetime(df['Interval Start Date/Time'],yearfirst=True).dt.floor('Min')
+    if df['Account Number'].dtype == 'O':
+        df['Account Number'] = pd.to_numeric(df['Account Number'].str.removeprefix("'"))
+    display(df.head(3))
+    print('\n')
 # %% 
 # Combine BCH data into one dataframe and drop duplicates
 
-'''
-['Account Number', 'Interval Start Date/Time', 'Net Consumption (kWh)',
-       'Demand (kW)', 'Power Factor (%)']
-'''
 
-BCH_data_raw = pd.concat(BCH_data_dict)
-BCH_data_WIP = BCH_data_raw.reset_index().drop_duplicates(subset=['Account Number','Interval Start Date/Time'],  keep='last')
-BCH_data_WIP['Date_Time'] = pd.to_datetime(BCH_data_WIP['Interval Start Date/Time']).dt.floor('Min')
+# df[['Account Number', 'Interval Start Date/Time', 'Net Consumption (kWh)',
+#        'Demand (kW)', 'Power Factor (%)']]
+
+# BCH_data_raw = pd.concat(BCH_data_dict)
+
+# %%
+BCH_data_WIP = pd.concat(BCH_data_dict).reset_index().drop_duplicates(subset=['Account Number','Date_Time'],  keep='first')
 
 # %% 
 # create df with only BCH energy and set datetime index
