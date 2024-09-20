@@ -127,7 +127,7 @@ def lines_plot(df, df2, caption, drop_list=[], legend=True, ylab='',
                vs_temp=False, col2 ='Temp (°C)'):
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
     df.loc[start_date:,:].drop(columns=drop_list).plot(alpha=0.75,
-        ax=ax, colormap=cmap2, legend=legend, x_compat=True)
+        ax=ax, colormap=cmap, legend=legend, x_compat=True)
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
@@ -287,9 +287,15 @@ def fix_heating(df_mod, df, circuit, cutoff, offset,
     df_mod.loc[rows,circuit] = spike-0.5
         
     
-fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.1, 0.25, 3.0)
+fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.15, 0.25, 3.0)
 
-fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.1, 0.25, 3.0)
+fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.10, 0.25, 3.0)
+
+# %%
+#TODO Fix this
+# living room thermostat died Nov 23, 2023, and we installed the newer programmable thermostat
+# We changed the bedroom thermostats around the same time too
+# fix_heating(kW_mod.loc['2023-11-24':,:], kW.loc['2023-11-24':,:], 'Heat_Beds', 0.45, 0.15, 0.25, 3.0)
 
 # %% Heat Fix testing
 
@@ -350,7 +356,7 @@ def fill_one_circuit(df_mod, df, circuit, load):
 # DHW_HP: 10 W appears to be a standby load   
 fill_one_circuit(kW_mod, kW, 'DHWHP_Spy', 0.01)    
 # Living Room: 30 W appears to be the router that is always on    
-fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.01)
+fill_one_circuit(kW_mod, kW, 'Living_Rm', 0.03)
 # various standby and chargers in bedrooms are still a small load
 fill_one_circuit(kW_mod, kW, 'Bed_Main', 0.01)
 # raspberry pi and doc
@@ -524,42 +530,68 @@ area_plot(kWh, 'Hourly Energy - Area', main_line=True,
 
 # %% Bed Rooms
 
-# lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',
-#                   ['Heat_Beds','Test_MTU']], 
-#                   'Heat_Beds kW Oct 10 to 28', 
-#                   start_date='2023-10-10', ylab='kW',
-#                   legend=True)
+lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+                  weather_df.loc['2023-10-10 10:00':'2023-10-28 13:20',:],
+                  'Heat_Beds kW Oct 10 to 28', 
+                  start_date='2023-10-10', ylab='kW',
+                  legend=True)
 
-# lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',
-#                       ['Heat_Beds','Test_MTU']], 
-#                       'Heat_Beds kW_mod Oct 10 to 28', 
-#                       start_date='2023-10-10', ylab='kW',
-#                       legend=True)
+lines_plot(kW_mod.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
+                      weather_df.loc['2023-10-10 10:00':'2023-10-28 13:20',:],
+                      'Heat_Beds kW_mod Oct 10 to 28', 
+                      start_date='2023-10-10', ylab='kW',
+                      legend=True)
 
 # %% Living Room
 
-# lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-#            'Heat Living Room kW Oct 28', ylab='kW',
-#            start_date='2023-10-28', legend=True)
+lines_plot(kW.loc['2023-10-28 13:30':'2024-03-09 8:32',['Heat_LvRm','Test_MTU']], 
+            weather_df,
+           'Heat Living Room kW Oct 28', ylab='kW',
+           start_date='2023-10-28', legend=True)
 
-# lines_plot(kW_mod.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-#            'Heat Living Room kW_mod Oct 28', ylab='kW',
-#            start_date='2023-10-28', legend=True)
+lines_plot(kW_mod.loc['2023-10-28 13:30':'2024-03-09 8:32',['Heat_LvRm','Test_MTU']], 
+            weather_df,
+           'Heat Living Room kW_mod Oct 28', ylab='kW',
+           start_date='2023-10-28', legend=True)
 
 # %% DHW Spyder vs Test MTU kW
 
+MTU_change_date = '2024-08-03 10:50'
 # corrected the DHW MTU polarity at 2024-03-12 8:04 
 
-lines_plot(kW_mod.loc[:,['DHWHP_Spy','Test_MTU']], weather_df, 
+lines_plot(kW_mod.loc[:MTU_change_date,['DHWHP_Spy','Test_MTU']], 
+            weather_df.loc[:MTU_change_date,:],
            'DHW spy vs test MTU - Power', ylab='kW',
            start_date='2024-03-12', legend=True, vs_temp=True)
 
 # %% DHW Spyder vs Test MTU kWh
 
-lines_plot(kWh.loc[:,['DHWHP_Spy','Test_MTU']].resample('1d').sum(), 
-           weather_df.loc[:,['Temp (°C)','Rel Hum (%)']].resample('1d').mean(), 
-           'DHW spy vs test MTU - daily energy', ylab='kWh',
+
+lines_plot(kWh.loc[:MTU_change_date,['DHWHP_Spy','Test_MTU']],  #.resample('1d').sum(), 
+           weather_df.loc[:MTU_change_date,['Temp (°C)','Rel Hum (%)']],  #.resample('1d').mean(), 
+           'DHW spy vs test MTU - hourly energy', ylab='kWh',
            start_date='2024-03-12', legend=True, vs_temp=True)
+
+
+# %% Bedroom Heat vs Test MTU kW
+# .loc[:,['Heat_Beds','Test_MTU']]
+#  weather_df.loc[:,['Temp (°C)','Rel Hum (%)']]
+
+lines_plot(kWh.loc[:,['Heat_Beds','Test_MTU']],
+          weather_df,
+           'Bedroom Heat Mod vs Test MTU - hourly energy', 
+           ylab='kWh', start_date=MTU_change_date, legend=True, vs_temp=True)
+
+# plt.close(fig='all')
+
+# %% Bedroom Heat and Living Room Heat
+
+lines_plot(kW_mod.loc[:,['Heat_Beds','Heat_LvRm']],  # .resample('1d').sum(), 
+          weather_df,   # .resample('1d').mean(), 
+           'Bedroom Heat Mod 0.15 offset - power', 
+           ylab='kW', start_date='2024-03-03 10:50', legend=True, vs_temp=True)
+
+# plt.close(fig='all')
 
 # %% Use Test MTU for Freezer for the week it was on that circuit
 
