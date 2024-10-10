@@ -266,14 +266,14 @@ I also added a second spyder legg for the double-pole of the Oven and for the Di
 finished at ~6:26PM
 """
 
-# %% Fix  Heating
-
+# %% Fix Heating OLD
 
 def fix_heating(df_mod, df, circuit, cutoff, offset, 
                             multiplier1, spike):
-    # when signal is > cutoff
+    df_mod.loc[:,circuit] = df.loc[:,circuit]       
+    # # when signal is > cutoff
     rows = df[circuit]>cutoff
-    df_mod.loc[rows,circuit] = (df.loc[rows,circuit]
+    df_mod.loc[rows,circuit] = (df.loc[rows,circuit] + offset
         + (df.loc[rows,circuit] - cutoff) * multiplier1)
     # when signal is <= cutoff and >= offset
     # with a 0.05 W deadband
@@ -282,14 +282,48 @@ def fix_heating(df_mod, df, circuit, cutoff, offset,
         - offset)
     # when signal is < offset
     df_mod.loc[(df[circuit]<offset),circuit] = 0
+    
     # when signal is > spike
     rows = df[circuit]>spike
     df_mod.loc[rows,circuit] = spike-0.5
         
     
-fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.15, 0.25, 3.0)
+# fix_heating(kW_mod, kW, 'Heat_LvRm', 0.75, 0.15, 0.25, 3.0)
 
-fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.10, 0.25, 3.0)
+# fix_heating(kW_mod, kW, 'Heat_Beds', 0.9, 0.15, 0.25, 3.0)
+
+# %% Fix Heating V2
+
+def fix_heating_v2(df_mod, df, circuit, dc_offset, linear_scale, cutoff):
+    df_mod.loc[:,circuit] = df.loc[:,circuit]       
+
+    # shift everything down by dc_offset
+    df_mod.loc[:,circuit] = df_mod.loc[:,circuit] - dc_offset
+    # but don't make negative values
+    df_mod.loc[df_mod[circuit]<0,circuit] = 0
+
+    # Linearly scale the signal
+    df_mod.loc[:,circuit] = df_mod.loc[:,circuit] * linear_scale
+
+    # cut off spikes above the cutoff value
+    df_mod.loc[df_mod[circuit]>cutoff,circuit] = cutoff        
+    
+fix_heating_v2(kW_mod, kW, 'Heat_LvRm', 0.15, 1.2, 2.6)
+
+fix_heating_v2(kW_mod, kW, 'Heat_Beds', 0.15, 1.4, 3.0)
+
+# %% Bedroom Heat and Test MTU kW
+if False:
+    lines_plot(kW_mod.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(), 
+            weather_df,   # .resample('1d').mean(), 
+            'Bedroom Heat mod - power', 
+            ylab='kW', start_date='2024-09-29', legend=True, vs_temp=False)
+
+    # plt.close(fig='all')
+    lines_plot(kW.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(), 
+            weather_df,   # .resample('1d').mean(), 
+            'Bedroom Heat Original - power', 
+            ylab='kW', start_date='2024-09-29', legend=True, vs_temp=False)
 
 # %%
 #TODO Fix this
@@ -297,23 +331,32 @@ fix_heating(kW_mod, kW, 'Heat_Beds', 0.45, 0.10, 0.25, 3.0)
 # We changed the bedroom thermostats around the same time too
 # fix_heating(kW_mod.loc['2023-11-24':,:], kW.loc['2023-11-24':,:], 'Heat_Beds', 0.45, 0.15, 0.25, 3.0)
 
-# %% Heat Fix testing
+# %% Heat Fix Plots for testing
+if False:
+    # Bed Rooms
+    lines_plot(kW.loc[:'2023-10-28',['Heat_Beds','Test_MTU']], 
+            weather_df, 
+            'Heat_Beds kW Original Oct 10 to 28', 
+            ylab='kW', start_date='2023-10-10', legend=True, vs_temp=False)
 
-# Plots for testing
-# Bed Rooms
-# lines_plot(kW.loc['2023-10-10 10:00':'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-#            'Heat_Beds kW Oct 10 to 28', ylab='kW',
-#           legend=True)
-# lines_plot(kW_mod.loc[:'2023-10-28 13:20',['Heat_Beds','Test_MTU']], 
-#             'Heat_Beds kW_mod Oct 10 to 28', ylab='kW',
-#             start_date='2023-10-10', legend=True)
-# # Living Room
-# lines_plot(kW.loc['2023-10-28 13:30':,['Heat_LvRm','Test_MTU']], 
-#             'Heat Living Room kW Oct 28', ylab='kW',
-#           legend=True)
-# lines_plot(kW_mod.loc[:,['Heat_LvRm','Test_MTU']], 
-#             'Heat Living Room kW_mod Oct 28', ylab='kW',
-#             start_date='2023-10-28', legend=True)
+    lines_plot(kW_mod.loc[:'2023-10-28',['Heat_Beds','Test_MTU']], 
+            weather_df, 
+            'Heat_Beds kW_mod Oct 10 to 28', 
+            ylab='kW', start_date='2023-10-10', legend=True, vs_temp=False)
+
+    # %%Living Room
+    lines_plot(kW.loc[:'2023-11-13',['Heat_LvRm','Test_MTU']], 
+            weather_df, 
+            'Heat Living Room kW Original Oct 28', 
+            ylab='kW', start_date='2023-10-28', legend=True, vs_temp=False)
+
+    # %%
+
+    lines_plot(kW_mod.loc[:'2023-11-13',['Heat_LvRm','Test_MTU']], 
+            weather_df, 
+            'Heat Living Room kW_mod Oct 28', 
+            ylab='kW', start_date='2023-10-28', legend=True, vs_temp=False)
+
 
 # %% Data Cleaning - double pole circuits
 '''
@@ -584,12 +627,21 @@ lines_plot(kWh.loc[:,['Heat_Beds','Test_MTU']],
 
 # plt.close(fig='all')
 
-# %% Bedroom Heat and Living Room Heat
+# %% Bedroom Heat and Test MTU kW
 
-lines_plot(kW_mod.loc[:,['Heat_Beds','Heat_LvRm']],  # .resample('1d').sum(), 
+lines_plot(kW_mod.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(), 
           weather_df,   # .resample('1d').mean(), 
            'Bedroom Heat Mod 0.15 offset - power', 
-           ylab='kW', start_date='2024-03-03 10:50', legend=True, vs_temp=True)
+           ylab='kW', start_date=MTU_change_date, legend=True, vs_temp=True)
+
+# plt.close(fig='all')
+
+# %% Bedroom Heat and Test MTU kW
+
+lines_plot(kW.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(), 
+          weather_df,   # .resample('1d').mean(), 
+           'Bedroom Heat Original - power', 
+           ylab='kW', start_date=MTU_change_date, legend=True, vs_temp=True)
 
 # plt.close(fig='all')
 
