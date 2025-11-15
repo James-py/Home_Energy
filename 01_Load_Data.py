@@ -9,8 +9,10 @@ terminal command to get data from Raspberry Pi
 rsync -a james@rpi.local:/home/james/Data/ ~/repo/Home_Energy/Data_Raw
 
 Use wget in Terminal to get Environment Canada Weather Data
+#For multiple years
 for year in `seq 2024 2025`;do for month in `seq 1 12`;do wget --content-disposition "https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=52941&Year=${year}&Month=${month}&Day=14&timeframe=1&submit= Download+Data" ;done;done
-
+#For one year
+for month in `seq 1 12`;do wget --content-disposition "https://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID=52941&Year=2025&Month=${month}&Day=14&timeframe=1&submit= Download+Data" ;done
 """
 
 # %% Import Libraries
@@ -29,6 +31,7 @@ from mpl_axes_aligner import align
 # %% get today's date
 
 today = datetime.datetime.now().date()
+yesterday = datetime.datetime.now().date() - datetime.timedelta(days=1)
 one_week_ago = today - datetime.timedelta(weeks=1)
 four_weeks_ago = today - datetime.timedelta(weeks=4)
 start_date = four_weeks_ago  # datetime.date(2023,10,9)
@@ -126,7 +129,7 @@ def lines_plot(df, df2, caption, drop_list=[], legend=True, ylab='',
                start_date=one_week_ago, 
                vs_temp=False, col2 ='Temp (°C)'):
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    df.loc[start_date:,:].drop(columns=drop_list).plot(alpha=0.75,
+    df.loc[start_date:today,:].drop(columns=drop_list).plot(alpha=0.75,
         ax=ax, colormap=cmap, legend=legend, x_compat=True)
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
@@ -137,7 +140,7 @@ def lines_plot(df, df2, caption, drop_list=[], legend=True, ylab='',
     if vs_temp:
         ax2 = ax.twinx()
         colour2='tab:blue'
-        ax2.plot(df2.loc[start_date:,col2], color=colour2, linestyle='--')
+        ax2.plot(df2.loc[start_date:today,col2], color=colour2, linestyle='--')
         ax2.set_ylabel('Temperature (°C)', color=colour2)
         ax2.tick_params(axis='y', labelcolor=colour2)
         align.yaxes(ax, 0, ax2, 0, 0.2)        
@@ -194,15 +197,22 @@ def read_data(fp_dict, use_TED_cols=False):
         'PF',
         ]
     data_dict = {}
+    error_data_dict = {}
     for n, f in fp_dict.items():
         if use_TED_cols:
-            data_dict[n] = pd.read_csv(f, names=col_names)
+            try:
+                data_dict[n] = pd.read_csv(f, names=col_names)
+            except:
+                print(f"Error reading {f}.")
+                error_data_dict[n] = pd.read_csv(f)
         else:
             data_dict[n] = pd.read_csv(f)
     return pd.concat(data_dict)
 
 
 weather_data_df = read_data(Weather_files)
+
+# %%
 TED_data_df = read_data(TED_files, use_TED_cols=True)  
 
 # %%
@@ -565,6 +575,7 @@ if False:
 
 
 # %% Plot Hourly Energy Area all channels
+# %matplotlib
 
 area_plot(kWh, 'Hourly Energy - Area', main_line=True,
           drop_list=['DHW_MTU','Main_MTU','Test_MTU'], 
@@ -651,9 +662,10 @@ lines_plot(kW.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(),
 #     '2023-09-30 12:00':'2023-10-10 09:50','Test_MTU']
 
 # %% One-off lines Plot
-
-# lines_plot(kW_mod[['Gar_Dryer','Test_MTU']].resample('1H').mean(), 'Dryer', ylab='hourly energy kWh',
-#           legend=True)
+lines_plot(kW_mod.loc[:,['K_Fridge']], # .resample('1d').sum(), 
+          weather_df,   # .resample('1d').mean(), 
+           'Fridge hourly Power - Mod', 
+           ylab='kW', start_date=four_weeks_ago, legend=True, vs_temp=False)
 
 
 # lines_plot(kW.filter(like='DishW').resample('1H').mean(), 'Dishwasher', ylab='hourly energy kWh',
@@ -684,3 +696,18 @@ lines_plot(kW.loc[:,['Heat_Beds','Test_MTU']],  # .resample('1d').sum(),
 
 # dots_plot(kW_mod[['Freezer','Test_MTU']], 'Freezer Mod', ylab='power kW',
 #           legend=True)
+
+# %%
+# Hourly Total Bar Graph
+
+fig, ax = plt.subplots(layout='constrained')
+
+kWh.loc[one_week_ago:,
+              ['K_Fridge']
+              ].plot.bar(legend=False, ax=ax)
+
+ax.axhline(color='k')
+ax.set_ylabel('Hourly Energy Consumption (kWh)')
+ax.set_xlabel('Date')
+ax.set_xticklabels(ax.get_xticks(), rotation = 90)
+ax.set_xticklabels(kWh[one_week_ago:].index.strftime("%Y-%m-%d %H:%M"))
