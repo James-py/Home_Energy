@@ -1,0 +1,45 @@
+[project]
+name = "Home_Energy"
+version = "0.1.0"
+description = "Home energy analysis using TED"
+readme = "README.md"
+requires-python = "~=3.12.0"
+dependencies = [
+    "xmltodict",
+    "pandas",
+    "pytest",
+    "matplotlib",
+    "seaborn",
+    "mpl_axes_aligner",
+    "ipykernel",
+    "ipympl",
+    "PyQt5"
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "isort",
+    "pre-commit",
+    "tqdm",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = ["E501", "E203", "E402", "B007"]  # module level import not at top of file
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+
+[tool.isort]
+line_length = 120
+profile = "black"
+
+[tool.nbqa.addopts]
+flake8 = [
+    "--ignore=E402,W503,W504,B007"  # module level import not at top of file
+]
