@@ -357,7 +357,7 @@ BCH_data_WIP = (
 
 # %%
 # create df with only BCH energy and set datetime index
-BCH_kWh = BCH_data_WIP.pivot(index="Date_Time", columns="Account Number", values="Net Consumption (kWh)")
+BCH_kWh = BCH_data_WIP.pivot(index="Date_Time", columns="Account Number", values="Net Consumption (kWh)").sum(axis=1)
 
 # %% calculate hourly energy
 
@@ -371,7 +371,7 @@ kWh_tot_compare["Main_MTU"] = kWh["Main_MTU"].fillna(kWh_tot_compare.Spy_Sum)
 kWh_tot_compare["MTU_Spy_Diff"] = kWh_tot_compare.Main_MTU - kWh_tot_compare.Spy_Sum
 
 # kWh_tot_compare.loc[kWh_tot_compare['MTU_Spy_Diff']<0, 'MTU_Spy_Diff'] = np.nan
-kWh_tot_compare["BCH"] = BCH_kWh[12014857]
+kWh_tot_compare["BCH"] = BCH_kWh
 kWh_tot_compare["MTU_BCH_Diff"] = kWh_tot_compare.Main_MTU - kWh_tot_compare.BCH
 
 # %% Daily Energy Totals
@@ -460,42 +460,6 @@ ax.set_xticklabels(plot_days_df[start_date:].index.strftime("%Y-%m-%d"))
 
 
 # %%
-# change matplotlib backend
-
-# plt.switch_backend("tkagg")
-plt.switch_backend("ipympl")
-
-
-# %%
-# Plot Cleaned Power Data Area All
-# area_plot(
-#     kW_mod,
-#     "Power Data Mod - Area",
-#     main_line=True,
-#     drop_list=["Main_MTU", "Test_MTU"],
-#     legend=True,
-#     ylab="Power (kW)",
-#     start_date=start_date,
-# )
-
-
-# %% Plot Hourly Energy Area all channels
-# %matplotlib
-
-area_plot(
-    kWh,
-    "Hourly Energy - Area",
-    main_line=True,
-    drop_list=["Main_MTU", "Test_MTU"],
-    legend=True,
-    ylab="Hourly Energy (kWh)",
-    start_date=start_date,
-)
-
-
-# plt.close(fig='all')
-
-# %%
 # Outdoor plugs Circuit Energy Lines
 # lines_plot(
 #     kWh.loc[:, ["Out_Plugs"]],  # .resample('1d').sum(),
@@ -553,7 +517,7 @@ area_plot(
 )
 
 # %%
-# Hourly Total Bar Graph
+# Fridge Hourly Total Bar Graph
 
 fig, ax = plt.subplots(layout="constrained")
 
@@ -568,3 +532,38 @@ ax.set_xticklabels(ax.get_xticks(), rotation=90)
 ax.set_xticklabels(fridge_day.index.strftime("%Y-%m-%d %H:%M"))
 
 plt.show()
+
+
+# %%
+# Plot Cleaned Power Data Area All
+area_plot(
+    kW_mod,
+    "Power Data Mod - Area",
+    main_line=False,
+    drop_list=["Main_MTU", "Test_MTU"],
+    legend=True,
+    ylab="Power (kW)",
+    start_date=start_date,
+)
+
+
+# %% Plot Hourly Energy Area all channels
+
+# %%
+# change matplotlib backend
+plt.switch_backend("tkagg")
+# plt.switch_backend("ipympl")
+%matplotlib
+
+area_plot(
+    kWh,
+    "Hourly Energy - Area",
+    main_line=True,
+    drop_list=["Main_MTU", "Test_MTU"],
+    legend=True,
+    ylab="Hourly Energy (kWh)",
+    start_date=start_date,
+)
+
+
+# plt.close(fig='all')
