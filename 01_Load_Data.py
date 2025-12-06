@@ -8,6 +8,7 @@ magic command for plots:
 
 terminal command to get data from Raspberry Pi
 rsync -a james@10.0.0.58:/home/james/Data/ ~/repo/Home_Energy/Data_Raw
+rsync -a james@rpi.local:/home/james/Data/ ~/repo/Home_Energy/Data_Raw
 
 Use wget in Terminal to get Environment Canada Weather Data
 #For multiple years
