@@ -110,7 +110,7 @@ def dots_plot(df, caption, vertLine=1000, xlab="Date / Time", ylab="", legend=Fa
     plt.show()
 
 
-def area_plot(df, caption, drop_list=[], main_line=False, legend=False, ylab="", start_date=one_week_ago):
+def area_plot(df, df2, caption, drop_list=[], main_line=False, legend=False, ylab="", start_date=one_week_ago, vs_temp=False, col2="Temp (°C)"):
     fig, ax = plt.subplots(1, 1)
     df.loc[start_date:, :].drop(columns=drop_list).plot.area(ax=ax, colormap=cmap, x_compat=True, legend=legend)
     if main_line:
@@ -119,6 +119,13 @@ def area_plot(df, caption, drop_list=[], main_line=False, legend=False, ylab="",
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
     ax.set_title(caption)
+    if vs_temp:
+        ax2 = ax.twinx()
+        colour2 = "tab:blue"
+        ax2.plot(df2.loc[start_date:, col2], color=colour2, linestyle="--")
+        ax2.set_ylabel("Temperature (°C)", color=colour2)
+        ax2.tick_params(axis="y", labelcolor=colour2)
+        align.yaxes(ax, 0, ax2, 0, 0.2)
     plt.show()
 
 
@@ -256,7 +263,7 @@ kW_mod["Gar_Dryer"] = kW.loc[:, ["Gar_Dry1", "Gar_Dry2"]].sum(axis=1) * 1.04
 calibration_dict = {
     "Bed_G_Off": 0.6,
     "Bed_Main": 0.60,
-    "DHWHP_Spy": 0.7,
+    "DHWHP_Spy": 0.7,  # sensitive to OAT
     "Freezer": 0.85,
     "Garage": 0.8,
     "Heat_Beds": 1.0,
@@ -486,7 +493,7 @@ area_plot(
     kWh.loc[:, ["Out_Plugs"]],
     "Outdoor Plugs Hourly Energy",
     ylab="kWh",
-    start_date=four_weeks_ago,
+    start_date="2025-09-01",
 )
 
 # %% Fridge
@@ -547,23 +554,28 @@ area_plot(
 )
 
 
-# %% Plot Hourly Energy Area all channels
-
 # %%
 # change matplotlib backend
 plt.switch_backend("tkagg")
 # plt.switch_backend("ipympl")
-%matplotlib
+# %matplotlib
+
+
+# %% Plot Hourly Energy Area all channels
 
 area_plot(
     kWh,
+    weather_df,
     "Hourly Energy - Area",
     main_line=True,
     drop_list=["Main_MTU", "Test_MTU"],
     legend=True,
     ylab="Hourly Energy (kWh)",
     start_date=start_date,
+    vs_temp=True,
 )
 
 
 # plt.close(fig='all')
+
+# %%
