@@ -34,8 +34,8 @@ today = datetime.datetime.now().date()
 yesterday = datetime.datetime.now().date() - datetime.timedelta(days=1)
 one_week_ago = today - datetime.timedelta(weeks=1)
 four_weeks_ago = today - datetime.timedelta(weeks=4)
-Apr_1 = datetime.date(2024, 4, 1)  # datetime.date(2023,10,9)
-Dec_5 = datetime.date(2024, 12, 5)
+reporting_period_start = datetime.date(2024, 4, 1)
+reporting_period_end = datetime.date(2024, 12, 5)
 
 # %% create my custom colourmap
 
@@ -119,8 +119,8 @@ def area_plot(
     main_line=False,
     legend=False,
     ylab="",
-    start_date=Apr_1,
-    end_date=Apr_1 + datetime.timedelta(weeks=2),
+    start_date=reporting_period_start,
+    end_date=reporting_period_start + datetime.timedelta(weeks=2),
     vs_temp=False,
     col2="Temp (°C)",
 ):
@@ -149,8 +149,8 @@ def lines_plot(
     drop_list=[],
     legend=True,
     ylab="",
-    start_date=Apr_1,
-    end_date=Apr_1 + datetime.timedelta(weeks=2),
+    start_date=reporting_period_start,
+    end_date=reporting_period_start + datetime.timedelta(weeks=2),
     vs_temp=False,
     col2="Temp (°C)",
 ):
@@ -177,7 +177,7 @@ def lines_plot(
 # plt.close('all')
 # lines_plot(kWh_tot_compare,weather_df, 'MTU and BCH Total Energy Comparison',
 #            drop_list=['DHWHP_Spy', 'Spy_Sum','MTU_Spy_Diff'], legend=True, ylab='Hourly Energy (kWh)',
-#            start_date=start_date, vs_temp=True)
+#            start_date=reporting_period_start, vs_temp=True)
 
 
 # %% set up folder paths
@@ -412,11 +412,10 @@ kWh_daily["MTU_BCH_Diff_pct"] = kWh_daily.MTU_BCH_Diff / kWh_daily.BCH
 kWh_daily.iloc[-10:, :].map("{:,.2f}".format)
 
 # %% DHW Daily Average
-ave_daily_DHW = kWh_daily.DHWHP_Spy.mean()
+ave_daily_DHW = kWh_daily.DHWHP_Spy[reporting_period_start:reporting_period_end].mean()
 dollar_per_kWh = 0.11
 print(
-    "Average daily DHW HP Energy Consumption:",
-    round(ave_daily_DHW, 2),
+    f"Average daily DHW HP Energy Consumptionfrom {reporting_period_start} to {reporting_period_end} ({period_length_days} days):",
     f"\n {round(ave_daily_DHW, 2)} kWh",
     f"\n ${round(ave_daily_DHW * dollar_per_kWh, 2)}",
     "\n",
@@ -424,21 +423,21 @@ print(
 
 print(
     "Extrapolated Annual DHW HP Energy Consumption:",
-    round(ave_daily_DHW, 2),
     f"\n {round(ave_daily_DHW * 365, 2)} kWh",
     f"\n ${round(ave_daily_DHW * dollar_per_kWh * 365, 2)}",
     "\n",
 )
 
 
-# %% DHW total consumption from Apr 1 to Dec 5
+# %% DHW total consumption during reporting period
 
-DHW_kWh_249_days = kWh_daily.DHWHP_Spy["2024-04-01":"2024-12-05"].sum()
+reporting_period_kWh = kWh_daily.DHWHP_Spy[reporting_period_start:reporting_period_end].sum()
+period_length_days = len(kWh_daily.DHWHP_Spy[reporting_period_start:reporting_period_end])
 dollar_per_kWh = 0.11
 print(
-    "Total DHW HP Energy Consumption from Apr 1, 2024 to Dec 5, 2024 (249 days):",
-    f"\n {round(DHW_kWh_249_days, 2)} kWh",
-    f"\n ${round(DHW_kWh_249_days * dollar_per_kWh, 2)}",
+    f"Total DHW HP Energy Consumption from {reporting_period_start} to {reporting_period_end} ({period_length_days} days):",
+    f"\n {round(reporting_period_kWh, 2)} kWh",
+    f"\n ${round(reporting_period_kWh * dollar_per_kWh, 2)}",
 )
 
 
@@ -454,7 +453,7 @@ lines_plot(
     drop_list=["DHWHP_Spy", "BCH", "MTU_BCH_Diff", "MTU_Spy_Diff_pct", "MTU_BCH_Diff_pct"],
     legend=True,
     ylab="Daily Energy (kWh)",
-    start_date=start_date,
+    start_date=reporting_period_start,
     vs_temp=True,
 )
 
@@ -466,7 +465,7 @@ lines_plot(
     drop_list=["DHWHP_Spy", "Spy_Sum", "MTU_Spy_Diff", "MTU_Spy_Diff_pct", "MTU_BCH_Diff_pct"],
     legend=True,
     ylab="Daily Energy (kWh)",
-    start_date=start_date,
+    start_date=reporting_period_start,
     vs_temp=True,
 )
 # %%
@@ -474,13 +473,15 @@ lines_plot(
 
 fig, ax = plt.subplots(layout="constrained")
 
-plot_days_df.loc[start_date:, ["BCH", "Main_MTU", "Spy_Sum"]].plot.bar(legend=True, ax=ax)
+plot_days_df.loc[reporting_period_start:reporting_period_end, ["BCH", "Main_MTU", "Spy_Sum"]].plot.bar(
+    legend=True, ax=ax
+)
 
 ax.axhline(color="k")
 ax.set_ylabel("Daily Energy Consumption (kWh)")
 ax.set_xlabel("Date")
 ax.set_xticklabels(ax.get_xticks(), rotation=90)
-ax.set_xticklabels(plot_days_df[start_date:].index.strftime("%Y-%m-%d"))
+ax.set_xticklabels(plot_days_df[reporting_period_start:reporting_period_end].index.strftime("%Y-%m-%d"))
 
 
 # %%
@@ -500,10 +501,13 @@ area_plot(
 # change matplotlib backend
 plt.switch_backend("tkagg")
 # plt.switch_backend("ipympl")
+plt.ion()
 # %matplotlib
 
 
 # %% Plot Hourly Energy Area all channels
+
+plt.close(fig="all")
 
 area_plot(
     kWh,
@@ -513,12 +517,11 @@ area_plot(
     drop_list=["Main_MTU", "Test_MTU"],
     legend=True,
     ylab="Hourly Energy (kWh)",
-    start_date=start_date,
-    end_date=end_date,
+    start_date=reporting_period_start,
+    end_date=reporting_period_end,
     vs_temp=False,
 )
 
 
-# plt.close(fig='all')
-
 # %%
+# plt.close(fig='all')
