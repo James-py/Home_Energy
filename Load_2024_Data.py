@@ -34,7 +34,8 @@ today = datetime.datetime.now().date()
 yesterday = datetime.datetime.now().date() - datetime.timedelta(days=1)
 one_week_ago = today - datetime.timedelta(weeks=1)
 four_weeks_ago = today - datetime.timedelta(weeks=4)
-start_date = datetime.date(2025, 1, 1)  # datetime.date(2023,10,9)
+Apr_1 = datetime.date(2024, 4, 1)  # datetime.date(2023,10,9)
+Dec_5 = datetime.date(2024, 12, 5)
 
 # %% create my custom colourmap
 
@@ -118,14 +119,15 @@ def area_plot(
     main_line=False,
     legend=False,
     ylab="",
-    start_date=one_week_ago,
+    start_date=Apr_1,
+    end_date=Apr_1 + datetime.timedelta(weeks=2),
     vs_temp=False,
     col2="Temp (°C)",
 ):
     fig, ax = plt.subplots(1, 1)
-    df.loc[start_date:, :].drop(columns=drop_list).plot.area(ax=ax, colormap=cmap, x_compat=True, legend=legend)
+    df.loc[start_date:end_date, :].drop(columns=drop_list).plot.area(ax=ax, colormap=cmap, x_compat=True, legend=legend)
     if main_line:
-        df.loc[start_date:, :].Main_MTU.plot(color="k", linestyle="-", ax=ax)
+        df.loc[start_date:end_date, :].Main_MTU.plot(color="k", linestyle="-", ax=ax)
         ax.legend()
     ax.set_ylabel(ylab)
     ax.set_xlabel("Date / Time")
@@ -133,7 +135,7 @@ def area_plot(
     if vs_temp:
         ax2 = ax.twinx()
         colour2 = "tab:blue"
-        ax2.plot(df2.loc[start_date:, col2], color=colour2, linestyle="--")
+        ax2.plot(df2.loc[start_date:end_date, col2], color=colour2, linestyle="--")
         ax2.set_ylabel("Temperature (°C)", color=colour2)
         ax2.tick_params(axis="y", labelcolor=colour2)
         align.yaxes(ax, 0, ax2, 0, 0.2)
@@ -141,10 +143,19 @@ def area_plot(
 
 
 def lines_plot(
-    df, df2, caption, drop_list=[], legend=True, ylab="", start_date=one_week_ago, vs_temp=False, col2="Temp (°C)"
+    df,
+    df2,
+    caption,
+    drop_list=[],
+    legend=True,
+    ylab="",
+    start_date=Apr_1,
+    end_date=Apr_1 + datetime.timedelta(weeks=2),
+    vs_temp=False,
+    col2="Temp (°C)",
 ):
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
-    df.loc[start_date:today, :].drop(columns=drop_list).plot(
+    df.loc[start_date:end_date, :].drop(columns=drop_list).plot(
         alpha=0.75, ax=ax, colormap=cmap, legend=legend, x_compat=True
     )
     ax.set_ylabel(ylab)
@@ -156,7 +167,7 @@ def lines_plot(
     if vs_temp:
         ax2 = ax.twinx()
         colour2 = "tab:blue"
-        ax2.plot(df2.loc[start_date:today, col2], color=colour2, linestyle="--")
+        ax2.plot(df2.loc[start_date:end_date, col2], color=colour2, linestyle="--")
         ax2.set_ylabel("Temperature (°C)", color=colour2)
         ax2.tick_params(axis="y", labelcolor=colour2)
         align.yaxes(ax, 0, ax2, 0, 0.2)
@@ -176,15 +187,10 @@ CWD = Path(__file__).parent.resolve()
 print("\nCWD Folder")
 print(CWD)
 
-# # raw data folder path object
-# RAWDataPath = CWD.joinpath("Data_Raw")
-# print("\nSource Data (Raw) Folder")
-# print(RAWDataPath)
-
 # recent data folder path object
-RecentDataPath = CWD.joinpath("Data_recent")
+TED_Data_Path = CWD.joinpath("Data_2024")
 print("\nSource Data (Recent) Folder")
-print(RecentDataPath)
+print(TED_Data_Path)
 
 # BC Hydro data folder path object
 BCH_Path = CWD.joinpath("Data_BC_Hydro")
@@ -205,7 +211,7 @@ def get_filepaths(f_path, f_pattern):
     return file_dict
 
 
-TED_files = get_filepaths(RecentDataPath, "*.csv")
+TED_files = get_filepaths(TED_Data_Path, "*.csv")
 Weather_files = get_filepaths(Weather_Path, "*.csv")
 
 # %%
@@ -401,17 +407,36 @@ kWh_daily["BCH"] = BCH_kWh
 kWh_daily["MTU_BCH_Diff"] = kWh_daily.Main_MTU - kWh_daily.BCH
 kWh_daily["MTU_Spy_Diff_pct"] = kWh_daily.MTU_Spy_Diff / kWh_daily.Spy_Sum
 kWh_daily["MTU_BCH_Diff_pct"] = kWh_daily.MTU_BCH_Diff / kWh_daily.BCH
-print("\n", "Average daily DHW HP Energy Consumption:", round(kWh_daily.DHWHP_Spy.mean(), 2), "kWh", "\n")
 
 # print table
 kWh_daily.iloc[-10:, :].map("{:,.2f}".format)
 
-# %% DHW total consumption from Apr 1 to Dec 5
-
-DHW_kWh_249_days = kWh_daily.DHWHP_Spy["2025-04-01":"2025-12-05"].sum()
+# %% DHW Daily Average
+ave_daily_DHW = kWh_daily.DHWHP_Spy.mean()
 dollar_per_kWh = 0.11
 print(
-    "Total DHW HP Energy Consumption from Apr 1, 2025 to Dec 5, 2025 (249 days):",
+    "Average daily DHW HP Energy Consumption:",
+    round(ave_daily_DHW, 2),
+    f"\n {round(ave_daily_DHW, 2)} kWh",
+    f"\n ${round(ave_daily_DHW * dollar_per_kWh, 2)}",
+    "\n",
+)
+
+print(
+    "Extrapolated Annual DHW HP Energy Consumption:",
+    round(ave_daily_DHW, 2),
+    f"\n {round(ave_daily_DHW * 365, 2)} kWh",
+    f"\n ${round(ave_daily_DHW * dollar_per_kWh * 365, 2)}",
+    "\n",
+)
+
+
+# %% DHW total consumption from Apr 1 to Dec 5
+
+DHW_kWh_249_days = kWh_daily.DHWHP_Spy["2024-04-01":"2024-12-05"].sum()
+dollar_per_kWh = 0.11
+print(
+    "Total DHW HP Energy Consumption from Apr 1, 2024 to Dec 5, 2024 (249 days):",
     f"\n {round(DHW_kWh_249_days, 2)} kWh",
     f"\n ${round(DHW_kWh_249_days * dollar_per_kWh, 2)}",
 )
@@ -457,117 +482,6 @@ ax.set_xlabel("Date")
 ax.set_xticklabels(ax.get_xticks(), rotation=90)
 ax.set_xticklabels(plot_days_df[start_date:].index.strftime("%Y-%m-%d"))
 
-# for some reason I can't get the line graph to overlay on top of the bar plot
-# plt.xticks(rotation = 90)
-# plot_days_df.loc[start_date:,'Temp (°C)'
-#               ].plot(legend=True, ax=ax)
-
-
-# %% Plot Hourly Energy Total Comparison
-
-# kWh_tot_compare_C = kWh_tot_compare.join(weather_df['Temp (°C)'])
-
-# lines_plot(
-#     kWh_tot_compare,
-#     weather_df.loc[:, ["Temp (°C)", "Rel Hum (%)"]].resample("1d").mean(),
-#     "MTU and Spyder Total Energy Comparison",
-#     drop_list=["DHWHP_Spy", "BCH", "MTU_BCH_Diff"],
-#     legend=True,
-#     ylab="Hourly Energy (kWh)",
-#     start_date=start_date,
-#     vs_temp=True,
-# )
-
-# lines_plot(
-#     kWh_tot_compare,
-#     weather_df.loc[:, ["Temp (°C)", "Rel Hum (%)"]].resample("1d").mean(),
-#     "MTU and BCH Total Energy Comparison",
-#     drop_list=["DHWHP_Spy", "Spy_Sum", "MTU_Spy_Diff"],
-#     legend=True,
-#     ylab="Hourly Energy (kWh)",
-#     start_date=start_date,
-#     vs_temp=True,
-# )
-
-
-# %%
-# Outdoor plugs Circuit Energy Lines
-# lines_plot(
-#     kWh.loc[:, ["Out_Plugs"]],  # .resample('1d').sum(),
-#     weather_df,  # .resample('1d').mean(),
-#     "Outdoor Plugs Hourly Energy",
-#     ylab="kWh",
-#     start_date="2025-09-01",
-#     legend=True,
-#     vs_temp=False,
-# )
-
-# %%
-# Outdoor plugs Circuit Power
-area_plot(
-    kW.loc[:, ["Out_Plugs"]],
-    weather_df,
-    "Outdoor Plugs Power - Raw",
-    ylab="kW",
-    start_date=four_weeks_ago,
-)
-
-# %%
-# Outdoor plugs Circuit Energy Area
-area_plot(
-    kWh.loc[:, ["Out_Plugs"]],
-    weather_df,
-    "Outdoor Plugs Hourly Energy",
-    ylab="kWh",
-    start_date="2025-09-01",
-)
-
-# %% Fridge
-lines_plot(
-    kW.loc[:, ["K_Fridge"]],
-    weather_df,
-    "Fridge Power",
-    ylab="kW",
-    start_date=four_weeks_ago,
-    legend=True,
-    vs_temp=False,
-)
-
-# %%
-area_plot(
-    kWh.loc[:, ["K_Fridge"]],  # .resample('1d').sum(),
-    weather_df,
-    "Fridge hourly energy",
-    ylab="kWh",
-    start_date=four_weeks_ago,
-)
-
-# %%
-area_plot(
-    kW.loc[:, ["K_Fridge"]],  # .resample('1d').sum(),
-    weather_df,
-    "Fridge power - Raw",
-    ylab="kW",
-    start_date=four_weeks_ago,
-)
-
-# %%
-# Fridge Hourly Total Bar Graph - currently a bit ugly
-
-# fig, ax = plt.subplots(layout="constrained")
-
-# fridge_day = kWh.loc["2025-11-01":today, ["K_Fridge"]].resample("1d").sum()
-
-# fridge_day.plot.bar(legend=False, ax=ax)
-
-# ax.axhline(color="k")
-# ax.set_ylabel("Daily Energy Consumption (kWh)")
-# ax.set_xlabel("Date")
-# ax.set_xticklabels(ax.get_xticks(), rotation=90)
-# ax.set_xticklabels(fridge_day.index.strftime("%Y-%m-%d %H:%M"))
-
-# plt.show()
-
 
 # %%
 # Plot Cleaned Power Data Area All
@@ -579,7 +493,6 @@ area_plot(
     drop_list=["Main_MTU", "Test_MTU"],
     legend=True,
     ylab="Power (kW)",
-    start_date=four_weeks_ago,
 )
 
 
@@ -601,7 +514,8 @@ area_plot(
     legend=True,
     ylab="Hourly Energy (kWh)",
     start_date=start_date,
-    vs_temp=True,
+    end_date=end_date,
+    vs_temp=False,
 )
 
 
